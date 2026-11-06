@@ -12,6 +12,9 @@ export default defineConfig(async () => {
             // Tests define their own bindings so they don't depend on wrangler.jsonc vars
             // (e.g. a production ALLOWED_EMAILS allow-list would otherwise 401 the test logins).
             ALLOWED_EMAILS: "",
+            VAPID_PUBLIC_KEY: "",
+            VAPID_PRIVATE_KEY: "",
+            VAPID_SUBJECT: "",
             GOOGLE_CLIENT_ID: "test-client-id",
             GOOGLE_CLIENT_SECRET: "test-client-secret",
             SESSION_SECRET: "test-session-secret-0123456789abcdef",

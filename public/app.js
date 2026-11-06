@@ -778,8 +778,69 @@ $("tokensButton").onclick = () => { $("tokenIssued").hidden = true; $("tokensMod
 $("tokensClose").onclick = () => $("tokensModal").classList.remove("open");
 $("tokenCreate").onclick = createToken;
 $("logout").onclick = async () => { await fetch("/auth/logout", { method: "POST" }); location.href = "/"; };
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForm(); closeDetail(); $("tokensModal").classList.remove("open"); $("groupsModal").classList.remove("open"); $("availModal").classList.remove("open"); $("googleModal").classList.remove("open"); $("feedModal").classList.remove("open"); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForm(); closeDetail(); $("tokensModal").classList.remove("open"); $("groupsModal").classList.remove("open"); $("availModal").classList.remove("open"); $("googleModal").classList.remove("open"); $("feedModal").classList.remove("open"); $("remindersModal").classList.remove("open"); } });
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+
+// ---------- reminders / web push ----------
+function urlB64ToUint8Array(b64) {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const s = (b64 + pad).replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+}
+const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+
+async function openReminders() {
+  $("remindersModal").classList.add("open");
+  await loadReminderSettings();
+  await loadReminderStatus();
+}
+async function loadReminderSettings() {
+  try { const s = await api("GET", "/api/reminders/settings"); $("reminderDefault").value = s.defaultMinutes === null || s.defaultMinutes === undefined ? "" : String(s.defaultMinutes); } catch {}
+}
+async function loadReminderStatus() {
+  const el = $("remindersStatus");
+  if (!pushSupported()) { el.textContent = "この端末はプッシュ通知に未対応です。"; $("remindersEnable").hidden = true; $("remindersDisable").hidden = true; return; }
+  const reg = await navigator.serviceWorker.ready.catch(() => null);
+  const sub = reg ? await reg.pushManager.getSubscription() : null;
+  el.textContent = sub
+    ? "この端末で通知は有効です。"
+    : Notification.permission === "denied"
+      ? "通知がブロックされています。ブラウザの設定で許可してください。"
+      : "この端末では通知は無効です。";
+  $("remindersEnable").hidden = !!sub;
+  $("remindersDisable").hidden = !sub;
+}
+async function enableReminders() {
+  if (!pushSupported()) { toast("この端末はプッシュ通知に対応していません"); return; }
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") { toast("通知が許可されませんでした"); return; }
+  const { key } = await api("GET", "/api/reminders/vapid-public-key");
+  if (!key) { toast("サーバーにVAPID鍵が設定されていません"); return; }
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(key) });
+  const j = sub.toJSON();
+  await api("POST", "/api/reminders/subscriptions", { endpoint: sub.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth });
+  toast("この端末で通知を有効にしました");
+  await loadReminderStatus();
+}
+async function disableReminders() {
+  const reg = await navigator.serviceWorker.ready.catch(() => null);
+  const sub = reg ? await reg.pushManager.getSubscription() : null;
+  if (sub) { await api("DELETE", "/api/reminders/subscriptions", { endpoint: sub.endpoint }).catch(() => {}); await sub.unsubscribe().catch(() => {}); }
+  toast("この端末の通知を無効にしました");
+  await loadReminderStatus();
+}
+async function saveReminderDefault() {
+  const v = $("reminderDefault").value;
+  await api("PUT", "/api/reminders/settings", { defaultMinutes: v === "" ? null : Number(v) });
+  toast("既定のリマインダーを保存しました");
+}
+$("remindersButton").onclick = () => openReminders().catch((e) => toast(e.message || "読み込めませんでした"));
+$("remindersClose").onclick = () => $("remindersModal").classList.remove("open");
+$("remindersEnable").onclick = () => enableReminders().catch((e) => toast(e.message || "失敗しました"));
+$("remindersDisable").onclick = () => disableReminders().catch((e) => toast(e.message || "失敗しました"));
+$("reminderDefault").onchange = () => saveReminderDefault().catch((e) => toast(e.message || "保存に失敗しました"));
 
 boot();

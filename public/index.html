@@ -41,6 +41,7 @@
       <div class="section-title">DATA</div>
       <button class="ghost-btn" id="googleButton" type="button">Googleカレンダー連携</button>
       <button class="ghost-btn" id="feedButton" type="button">スマホのカレンダーで見る</button>
+      <button class="ghost-btn" id="remindersButton" type="button">リマインダー</button>
       <button class="ghost-btn" id="importButton" type="button">旧Calendar Hubから取り込む</button>
       <button class="ghost-btn" id="tokensButton" type="button">AI用APIキー</button>
       <input id="importFile" type="file" accept="application/json,.json" hidden>
@@ -202,6 +203,31 @@
       <button type="button" id="feedRevoke" class="danger">URLを無効にする</button>
     </div>
     <div class="actions"><button type="button" id="feedClose">閉じる</button></div>
+  </div>
+</div>
+
+<div class="modal" id="remindersModal" role="dialog" aria-modal="true" aria-labelledby="remindersHeading">
+  <div class="form">
+    <h2 id="remindersHeading">リマインダー</h2>
+    <p class="hint">予定の開始前にこの端末へプッシュ通知を送ります。端末ごとに「通知を有効にする」を押してください（iPhoneはホーム画面に追加したアプリから開く必要があります）。既定のリマインダーは、以後に作成する予定へ自動で適用されます。</p>
+    <div id="remindersStatus" class="status">読み込み中…</div>
+    <p class="field"><label for="reminderDefault">既定のリマインダー</label>
+      <select id="reminderDefault">
+        <option value="">なし</option>
+        <option value="5">5分前</option>
+        <option value="10">10分前</option>
+        <option value="15">15分前</option>
+        <option value="30">30分前</option>
+        <option value="60">1時間前</option>
+        <option value="120">2時間前</option>
+        <option value="1440">1日前</option>
+      </select>
+    </p>
+    <div class="actions" style="position:static;justify-content:flex-start;flex-wrap:wrap">
+      <button type="button" class="save" id="remindersEnable">この端末で通知を有効にする</button>
+      <button type="button" id="remindersDisable" class="danger" hidden>この端末で無効にする</button>
+    </div>
+    <div class="actions"><button type="button" id="remindersClose">閉じる</button></div>
   </div>
 </div>
 

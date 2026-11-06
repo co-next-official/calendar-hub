@@ -12,6 +12,31 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Web Push: show a notification for a reminder, and focus the app when tapped.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = {}; }
+  const title = data.title || "予定のリマインダー";
+  const when = data.startAt ? new Date(data.startAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }) : "";
+  const body = when ? `まもなく開始：${when}` : "まもなく始まります";
+  event.waitUntil(self.registration.showNotification(title, {
+    body,
+    tag: data.eventId || undefined,
+    data: { eventId: data.eventId || null },
+    icon: "/favicon.svg",
+    badge: "/favicon.svg",
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of clients) { if (c.url.startsWith(location.origin)) return c.focus(); }
+    return self.clients.openWindow("/");
+  })());
+});
+
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== location.origin) return;

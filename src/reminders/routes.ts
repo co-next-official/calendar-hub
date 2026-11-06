@@ -22,7 +22,7 @@ export function reminderRoutes() {
     await next();
   });
 
-  r.get("/vapid-public-key", (c) => c.json({ key: c.env.VAPID_PUBLIC_KEY ?? null }));
+  r.get("/vapid-public-key", (c) => c.json({ key: c.env.VAPID_PUBLIC_KEY || null }));
 
   r.get("/settings", (c) => c.json({ defaultMinutes: c.get("user").reminderDefaultMinutes ?? null }));
 
