@@ -630,6 +630,37 @@ async function disconnectGoogle() {
   loadGoogleStatus();
 }
 
+// ---------- subscription feed ----------
+async function loadFeedStatus() {
+  try {
+    const s = await api("GET", "/api/feed");
+    $("feedStatus").textContent = s.active ? `発行済み（${new Date(s.created_at).toLocaleDateString("ja-JP")}）・最終取得 ${s.last_fetched_at ? new Date(s.last_fetched_at).toLocaleString("ja-JP") : "まだ"}。URLを忘れた場合は発行し直してください（古いURLは使えなくなります）。` : "まだ発行していません。";
+    $("feedCreate").textContent = s.active ? "URLを発行し直す" : "URLを発行する";
+    $("feedRevoke").hidden = !s.active;
+  } catch { $("feedStatus").textContent = "読み込めませんでした"; }
+}
+async function createFeed() {
+  if ($("feedRevoke").hidden === false && !confirm("発行し直すと、今のURLを登録しているカレンダーには表示されなくなります。続けますか？")) return;
+  try {
+    const f = await api("POST", "/api/feed");
+    const box = $("feedStatus");
+    box.replaceChildren(make("b", "", "このURLは今しか表示されません。コピーしてカレンダーアプリに登録してください。"), make("code", "", f.url));
+    box.querySelector("code").style.cssText = "display:block;word-break:break-all;margin:6px 0;font-size:12px";
+    const copy = make("button", "ghost-btn", "コピー");
+    copy.type = "button";
+    copy.onclick = async () => { await navigator.clipboard.writeText(f.url); toast("コピーしました"); };
+    const open = make("a", "ghost-btn", "このデバイスのカレンダーで開く");
+    open.href = f.webcal_url;
+    box.append(copy, " ", open);
+    $("feedRevoke").hidden = false;
+  } catch { toast("発行できませんでした"); }
+}
+async function revokeFeed() {
+  if (!confirm("URLを無効にしますか？登録先のカレンダーには表示されなくなります。")) return;
+  await api("DELETE", "/api/feed").catch(() => {});
+  loadFeedStatus();
+}
+
 // ---------- API keys ----------
 async function loadTokens() {
   const list = $("tokenList");
@@ -732,6 +763,10 @@ $("importFile").onchange = (e) => { const f = e.target.files?.[0]; e.target.valu
 $("availButton").onclick = async () => { await loadGroups(); openAvailability(); };
 $("availSearch").onclick = searchAvailability;
 $("availClose").onclick = () => $("availModal").classList.remove("open");
+$("feedButton").onclick = () => { $("feedModal").classList.add("open"); loadFeedStatus(); };
+$("feedClose").onclick = () => $("feedModal").classList.remove("open");
+$("feedCreate").onclick = createFeed;
+$("feedRevoke").onclick = revokeFeed;
 $("googleButton").onclick = () => { $("googleModal").classList.add("open"); loadGoogleStatus(); };
 $("googleClose").onclick = () => $("googleModal").classList.remove("open");
 $("googleSync").onclick = syncGoogle;
@@ -743,6 +778,8 @@ $("tokensButton").onclick = () => { $("tokenIssued").hidden = true; $("tokensMod
 $("tokensClose").onclick = () => $("tokensModal").classList.remove("open");
 $("tokenCreate").onclick = createToken;
 $("logout").onclick = async () => { await fetch("/auth/logout", { method: "POST" }); location.href = "/"; };
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForm(); closeDetail(); $("tokensModal").classList.remove("open"); $("groupsModal").classList.remove("open"); $("availModal").classList.remove("open"); $("googleModal").classList.remove("open"); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForm(); closeDetail(); $("tokensModal").classList.remove("open"); $("groupsModal").classList.remove("open"); $("availModal").classList.remove("open"); $("googleModal").classList.remove("open"); $("feedModal").classList.remove("open"); } });
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 
 boot();

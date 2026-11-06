@@ -7,6 +7,8 @@
 <title>Calendar Hub — 予定をひとつに</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/app.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#317555">
 </head>
 <body>
 <div class="gate" id="gate" hidden>
@@ -38,6 +40,7 @@
     <div class="side-actions">
       <div class="section-title">DATA</div>
       <button class="ghost-btn" id="googleButton" type="button">Googleカレンダー連携</button>
+      <button class="ghost-btn" id="feedButton" type="button">スマホのカレンダーで見る</button>
       <button class="ghost-btn" id="importButton" type="button">旧Calendar Hubから取り込む</button>
       <button class="ghost-btn" id="tokensButton" type="button">AI用APIキー</button>
       <input id="importFile" type="file" accept="application/json,.json" hidden>
@@ -186,6 +189,19 @@
       <button type="button" id="googleDisconnect" class="danger">連携を解除</button>
     </div>
     <div class="actions"><button type="button" id="googleClose">閉じる</button></div>
+  </div>
+</div>
+
+<div class="modal" id="feedModal" role="dialog" aria-modal="true" aria-labelledby="feedHeading">
+  <div class="form">
+    <h2 id="feedHeading">スマホのカレンダーで見る</h2>
+    <p class="hint">専用のURLを、iPhoneのカレンダー（設定 → カレンダー → アカウント → 照会するカレンダーを追加）やGoogleカレンダー（他のカレンダー → URLで追加）に登録すると、ここの予定が表示されます（読み取りのみ・更新は1時間ほど遅れます）。URLを知っている人は誰でも予定を見られるので、人に教えないでください。</p>
+    <div id="feedStatus" class="status">読み込み中…</div>
+    <div class="actions" style="position:static;justify-content:flex-start;flex-wrap:wrap">
+      <button type="button" class="save" id="feedCreate">URLを発行する</button>
+      <button type="button" id="feedRevoke" class="danger">URLを無効にする</button>
+    </div>
+    <div class="actions"><button type="button" id="feedClose">閉じる</button></div>
   </div>
 </div>
 

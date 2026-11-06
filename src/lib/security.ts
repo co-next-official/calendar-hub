@@ -26,5 +26,5 @@ export const securityHeaders: MiddlewareHandler<AppEnv> = async (c, next) => {
   c.header("X-Content-Type-Options", "nosniff");
   c.header("Referrer-Policy", "no-referrer");
   c.header("X-Frame-Options", "DENY");
-  c.header("Cache-Control", c.res.headers.get("Cache-Control") ?? "no-store");
+  if (!c.res.headers.has("Cache-Control")) c.header("Cache-Control", "no-store");
 };

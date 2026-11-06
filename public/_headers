@@ -8,3 +8,6 @@
 /guest.html
   X-Robots-Tag: noindex
   Cache-Control: no-store
+
+/sw.js
+  Cache-Control: no-cache

@@ -153,6 +153,16 @@ export const googleConnections = sqliteTable("google_connections", {
   createdAt: text("created_at").notNull().default(now),
 }, (t) => [uniqueIndex("google_connections_user_calendar_idx").on(t.userId, t.calendarId)]);
 
+// Secret iCalendar subscription URL (calendar apps cannot send auth headers). One active feed per user.
+export const calendarFeeds = sqliteTable("calendar_feeds", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  createdAt: text("created_at").notNull().default(now),
+  lastFetchedAt: text("last_fetched_at"),
+  revokedAt: text("revoked_at"),
+}, (t) => [index("calendar_feeds_user_idx").on(t.userId)]);
+
 export type User = typeof users.$inferSelect;
 export type GoogleConnection = typeof googleConnections.$inferSelect;
 export type Group = typeof groups.$inferSelect;

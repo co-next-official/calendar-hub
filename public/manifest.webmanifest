@@ -1,0 +1,12 @@
+{
+  "name": "Calendar Hub",
+  "short_name": "Calendar",
+  "description": "予定をひとつにまとめるカレンダー",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f9f6",
+  "theme_color": "#317555",
+  "lang": "ja",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

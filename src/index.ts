@@ -8,6 +8,7 @@ import { realGoogleApi } from "./google/client";
 import { googleApiRoutes, googleConnectRoutes } from "./google/routes";
 import { syncAll } from "./google/sync";
 import { clientIp, rateLimit, securityHeaders } from "./lib/security";
+import { feedApiRoutes, feedPublicRoutes } from "./events/feed-routes";
 import { eventRoutes, importRoutes } from "./events/routes";
 import { groupRoutes } from "./groups/routes";
 import { availabilityRoutes } from "./availability/routes";
@@ -23,6 +24,9 @@ export function createApp(deps: Deps = defaultDeps) {
   app.use("/guest/api/*", securityHeaders);
   app.use("/auth/*", rateLimit("AUTH_LIMITER", clientIp));
   app.use("/guest/api/*", rateLimit("GUEST_LIMITER", clientIp));
+  app.use("/feed/*", securityHeaders);
+  app.use("/feed/*", rateLimit("GUEST_LIMITER", clientIp));
+  app.route("/feed", feedPublicRoutes());
 
   app.get("/api/health", (c) => c.json({ ok: true }));
   app.route("/auth/google/calendar", googleConnectRoutes(deps));
@@ -41,6 +45,7 @@ export function createApp(deps: Deps = defaultDeps) {
   app.route("/api/groups", groupRoutes());
   app.route("/api/availability", availabilityRoutes());
   app.route("/api/google", googleApiRoutes(deps));
+  app.route("/api/feed", feedApiRoutes());
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
   app.onError((err, c) => {
