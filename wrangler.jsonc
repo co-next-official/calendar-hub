@@ -18,7 +18,7 @@
       "binding": "DB",
       "database_name": "calendar-hub",
       // Replace with the id printed by `npx wrangler d1 create calendar-hub`.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "95605d3d-2a63-45bc-b490-d0d9e8b2cdb2",
       "migrations_dir": "drizzle"
     }
   ],
