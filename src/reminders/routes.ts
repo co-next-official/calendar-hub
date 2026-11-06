@@ -55,6 +55,15 @@ export function reminderRoutes() {
     return c.json({ ok: true });
   });
 
+  r.get("/events/:id", async (c) => {
+    const id = c.req.param("id");
+    const db = getDb(c.env.DB);
+    const [owned] = await db.select().from(events).where(and(eq(events.id, id), eq(events.ownerId, c.get("user").id))).limit(1);
+    if (!owned) return c.json({ error: "not_found" }, 404);
+    const [row] = await db.select().from(eventReminders).where(eq(eventReminders.eventId, id)).limit(1);
+    return c.json({ hasOverride: !!row, minutesBefore: row ? row.minutesBefore : null });
+  });
+
   r.put("/events/:id", async (c) => {
     const id = c.req.param("id");
     const body = await c.req.json().catch(() => null);

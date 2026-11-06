@@ -110,6 +110,18 @@
     <label for="category">分類</label>
     <select id="category"><option value="work">仕事</option><option value="personal">個人</option><option value="team">チーム</option></select>
     <label for="notes">メモ（任意）</label><textarea id="notes" maxlength="2000"></textarea>
+    <label for="eventReminder">リマインダー</label>
+    <select id="eventReminder">
+      <option value="">既定に従う</option>
+      <option value="off">オフ</option>
+      <option value="5">5分前</option>
+      <option value="10">10分前</option>
+      <option value="15">15分前</option>
+      <option value="30">30分前</option>
+      <option value="60">1時間前</option>
+      <option value="120">2時間前</option>
+      <option value="1440">1日前</option>
+    </select>
     <fieldset class="share-box" id="shareBox">
       <legend>共有</legend>
       <select id="visibility"><option value="private">自分だけ</option><option value="participants">指定した人</option><option value="group">グループ</option></select>

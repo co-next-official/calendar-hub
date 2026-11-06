@@ -292,6 +292,9 @@ function openForm(id = null, date = state.selected, hour = 10) {
     $("end").value = `${String(hour + 1).padStart(2, "0")}:00`;
   }
   toggleAllDay();
+  $("eventReminder").value = "";
+  state.reminderLoaded = "";
+  if (e) loadEventReminder(e.id);
   $("modal").classList.add("open");
   $("title").focus();
 }
@@ -330,6 +333,8 @@ async function save(ev) {
       try { saved = await api("PUT", `/api/events/${saved.id}/sharing`, share); }
       catch (err) { toast(`予定は保存しましたが共有の設定に失敗しました（${err.message}）`); }
     }
+    try { await applyEventReminder(saved.id); }
+    catch (err) { toast(`予定は保存しましたがリマインダーの設定に失敗しました（${err.message}）`); }
     state.events = editing ? state.events.map((x) => (x.id === saved.id ? saved : x)) : [...state.events, saved];
     state.selected = saved.all_day ? parseKey(saved.start_date) : startOfDay(new Date(saved.start_at));
     state.anchor = new Date(state.selected);
@@ -842,5 +847,20 @@ $("remindersClose").onclick = () => $("remindersModal").classList.remove("open")
 $("remindersEnable").onclick = () => enableReminders().catch((e) => toast(e.message || "失敗しました"));
 $("remindersDisable").onclick = () => disableReminders().catch((e) => toast(e.message || "失敗しました"));
 $("reminderDefault").onchange = () => saveReminderDefault().catch((e) => toast(e.message || "保存に失敗しました"));
+
+async function loadEventReminder(id) {
+  try {
+    const r = await api("GET", `/api/reminders/events/${id}`);
+    const v = !r.hasOverride ? "" : r.minutesBefore === null ? "off" : String(r.minutesBefore);
+    $("eventReminder").value = v;
+    state.reminderLoaded = v;
+  } catch { state.reminderLoaded = ""; }
+}
+async function applyEventReminder(id) {
+  const v = $("eventReminder").value;
+  if (v === (state.reminderLoaded ?? "")) return; // unchanged
+  if (v === "") await api("DELETE", `/api/reminders/events/${id}`);
+  else await api("PUT", `/api/reminders/events/${id}`, { minutesBefore: v === "off" ? null : Number(v) });
+}
 
 boot();

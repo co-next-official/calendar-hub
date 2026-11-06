@@ -70,7 +70,10 @@ describe("/api/reminders", () => {
     expect(created.status).toBe(201);
     const id = created.body.id as string;
 
+    expect((await call("GET", `/api/reminders/events/${id}`)).body).toEqual({ hasOverride: false, minutesBefore: null });
+
     expect((await call("PUT", `/api/reminders/events/${id}`, { minutesBefore: 15 })).body).toEqual({ minutesBefore: 15 });
+    expect((await call("GET", `/api/reminders/events/${id}`)).body).toEqual({ hasOverride: true, minutesBefore: 15 });
     let [row] = await getDb(env.DB).select().from(eventReminders).where(eq(eventReminders.eventId, id));
     expect(row?.minutesBefore).toBe(15);
 
