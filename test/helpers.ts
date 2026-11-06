@@ -1,11 +1,23 @@
 import { env } from "cloudflare:test";
 import { createApp } from "../src/index";
 import type { GoogleClaims } from "../src/auth/google";
+import type { GoogleApi } from "../src/google/client";
+
+/** A Google Calendar API that does nothing unless a test overrides parts of it. */
+export function fakeGoogle(overrides: Partial<GoogleApi> = {}): GoogleApi {
+  return {
+    exchangeCalendarCode: async () => { throw new Error("not faked"); },
+    refreshAccessToken: async () => ({ accessToken: "fresh-access", expiresIn: 3600 }),
+    listEvents: async () => ({ items: [] }),
+    revoke: async () => {},
+    ...overrides,
+  };
+}
 
 export const BASE = "https://cal.example.com";
 
 /** App whose Google token exchange returns whatever claims the test sets for a code. */
-export function testApp() {
+export function testApp(google: GoogleApi = fakeGoogle()) {
   const accounts = new Map<string, GoogleClaims>();
   const app = createApp({
     exchangeCode: async ({ code }) => {
@@ -13,6 +25,7 @@ export function testApp() {
       if (!claims) throw new Error("unknown code");
       return claims;
     },
+    google,
   });
   const request = (path: string, init: RequestInit = {}) => app.request(BASE + path, init, env);
   return { app, accounts, request };
@@ -41,5 +54,5 @@ export async function login(t: ReturnType<typeof testApp>, claims: Partial<Googl
 }
 
 export async function resetDb() {
-  await env.DB.exec("DELETE FROM event_invites; DELETE FROM event_participants; DELETE FROM group_members; DELETE FROM groups; DELETE FROM api_audit; DELETE FROM api_tokens; DELETE FROM events; DELETE FROM sessions; DELETE FROM users;");
+  await env.DB.exec("DELETE FROM google_connections; DELETE FROM event_invites; DELETE FROM event_participants; DELETE FROM group_members; DELETE FROM groups; DELETE FROM api_audit; DELETE FROM api_tokens; DELETE FROM events; DELETE FROM sessions; DELETE FROM users;");
 }

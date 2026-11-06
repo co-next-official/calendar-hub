@@ -38,7 +38,10 @@ export const events = sqliteTable("events", {
   busyOnly: integer("busy_only", { mode: "boolean" }).notNull().default(false),
   // Set when visibility = 'group'. No FK so the events table needs no rebuild; a deleted group simply matches nobody.
   groupId: text("group_id"),
-  source: text("source", { enum: ["web", "api", "import"] }).notNull().default("web"),
+  source: text("source", { enum: ["web", "api", "import", "google"] }).notNull().default("web"),
+  // For events mirrored from Google Calendar: the connection and Google's event (instance) id.
+  connectionId: text("connection_id"),
+  externalId: text("external_id"),
   legacyId: text("legacy_id"),
   version: integer("version").notNull().default(1),
   createdAt: text("created_at").notNull().default(now),
@@ -47,6 +50,7 @@ export const events = sqliteTable("events", {
   index("events_owner_start_date_idx").on(t.ownerId, t.startDate),
   index("events_owner_start_at_idx").on(t.ownerId, t.startAt),
   uniqueIndex("events_owner_legacy_idx").on(t.ownerId, t.legacyId),
+  uniqueIndex("events_connection_external_idx").on(t.connectionId, t.externalId),
   check("events_title_len", sql`length(trim(${t.title})) between 1 and 120`),
   check("events_notes_len", sql`length(${t.notes}) <= 2000`),
   check("events_time_shape", sql`(
@@ -134,7 +138,23 @@ export const eventInvites = sqliteTable("event_invites", {
   revokedAt: text("revoked_at"),
 }, (t) => [index("event_invites_event_idx").on(t.eventId)]);
 
+// Read-only Google Calendar connection. OAuth tokens are AES-GCM encrypted with GOOGLE_TOKEN_KEY.
+export const googleConnections = sqliteTable("google_connections", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  calendarId: text("calendar_id").notNull().default("primary"),
+  googleEmail: text("google_email"),
+  refreshTokenEnc: text("refresh_token_enc").notNull(),
+  accessTokenEnc: text("access_token_enc"),
+  accessExpiresAt: text("access_expires_at"),
+  syncToken: text("sync_token"),
+  lastSyncedAt: text("last_synced_at"),
+  lastError: text("last_error"),
+  createdAt: text("created_at").notNull().default(now),
+}, (t) => [uniqueIndex("google_connections_user_calendar_idx").on(t.userId, t.calendarId)]);
+
 export type User = typeof users.$inferSelect;
+export type GoogleConnection = typeof googleConnections.$inferSelect;
 export type Group = typeof groups.$inferSelect;
 export type GroupMember = typeof groupMembers.$inferSelect;
 export type ApiToken = typeof apiTokens.$inferSelect;

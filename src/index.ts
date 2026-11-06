@@ -2,16 +2,23 @@ import { Hono } from "hono";
 import { exchangeCode } from "./auth/google";
 import { authRoutes, meRoutes, requireSession, requireUser } from "./auth/routes";
 import { tokenRoutes } from "./auth/tokens";
-import type { AppEnv, Deps } from "./env";
+import type { AppEnv, Deps, Env } from "./env";
+import { getDb } from "./db/events";
+import { realGoogleApi } from "./google/client";
+import { googleApiRoutes, googleConnectRoutes } from "./google/routes";
+import { syncAll } from "./google/sync";
 import { eventRoutes, importRoutes } from "./events/routes";
 import { groupRoutes } from "./groups/routes";
 import { availabilityRoutes } from "./availability/routes";
 import { guestRoutes, sharingRoutes } from "./events/sharing-routes";
 
-export function createApp(deps: Deps = { exchangeCode }) {
+export const defaultDeps: Deps = { exchangeCode, google: realGoogleApi };
+
+export function createApp(deps: Deps = defaultDeps) {
   const app = new Hono<AppEnv>();
 
   app.get("/api/health", (c) => c.json({ ok: true }));
+  app.route("/auth/google/calendar", googleConnectRoutes(deps));
   app.route("/auth", authRoutes(deps));
   app.route("/guest/api", guestRoutes());
 
@@ -25,6 +32,7 @@ export function createApp(deps: Deps = { exchangeCode }) {
   app.route("/api/import", importRoutes());
   app.route("/api/groups", groupRoutes());
   app.route("/api/availability", availabilityRoutes());
+  app.route("/api/google", googleApiRoutes(deps));
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
   app.onError((err, c) => {
@@ -37,4 +45,12 @@ export function createApp(deps: Deps = { exchangeCode }) {
   return app;
 }
 
-export default createApp();
+const app = createApp();
+
+export default {
+  fetch: app.fetch,
+  // Cron trigger (wrangler.jsonc): keep Google Calendar mirrors fresh.
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(syncAll(getDb(env.DB), env, defaultDeps.google));
+  },
+} satisfies ExportedHandler<Env>;

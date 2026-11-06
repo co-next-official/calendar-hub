@@ -64,6 +64,7 @@ export function eventRoutes() {
     const db = getDb(c.env.DB), ownerId = c.get("user").id, id = c.req.param("id");
     const current = await getEvent(db, ownerId, id);
     if (!current) return c.json({ error: "not_found" }, 404);
+    if (current.source === "google") return c.json({ error: "google_event_read_only" }, 409);
     const result = validateEvent(body, toFields(current));
     if (!result.ok) return c.json({ error: result.error }, 400);
     const updated = await updateEvent(db, ownerId, id, body.version as number, result.value);
@@ -77,6 +78,8 @@ export function eventRoutes() {
     if (c.get("auth").kind === "token" && c.req.query("confirm") !== "true") {
       return c.json({ error: "confirmation_required", hint: "Ask the user, then retry with ?confirm=true" }, 428);
     }
+    const existing = await getEvent(getDb(c.env.DB), c.get("user").id, c.req.param("id"));
+    if (existing?.source === "google") return c.json({ error: "google_event_read_only" }, 409);
     const ok = await deleteEvent(getDb(c.env.DB), c.get("user").id, c.req.param("id"));
     return ok ? c.json({ deleted: true }) : c.json({ error: "not_found" }, 404);
   });

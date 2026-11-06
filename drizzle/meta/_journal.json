@@ -29,6 +29,13 @@
       "when": 1793974448809,
       "tag": "0003_sharing",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793974955890,
+      "tag": "0004_google_calendar",
+      "breakpoints": true
     }
   ]
 }

@@ -100,7 +100,7 @@ async function loadRange(force = false) {
 
 // ---------- rendering ----------
 function eventButton(p, extra = "") {
-  const b = make("button", `event ${p.e.category}${p.allDay ? " all-day" : ""}${p.e.is_owner === false ? " shared" : ""}${extra}`);
+  const b = make("button", `event ${p.e.category}${p.allDay ? " all-day" : ""}${p.e.is_owner === false ? " shared" : ""}${p.e.source === "google" ? " from-google" : ""}${extra}`);
   b.type = "button";
   b.title = `${timeLabel(p.e)} ${p.e.title}`;
   b.addEventListener("click", (ev) => { ev.stopPropagation(); showDetail(p.e.id); });
@@ -351,9 +351,9 @@ function showDetail(id) {
   state.activeId = id;
   $("detailTitle").textContent = e.title;
   const day = e.all_day ? parseKey(e.start_date) : new Date(e.start_at);
-  const who = e.is_owner === false ? `${e.owner_name} さんの予定` : CATEGORY[e.category];
+  const who = e.is_owner === false ? `${e.owner_name} さんの予定` : e.source === "google" ? "Googleカレンダー（読み取り専用）" : CATEGORY[e.category];
   $("detailMeta").textContent = [`${fmt(day, { year: "numeric", month: "long", day: "numeric", weekday: "long" })} · ${timeLabel(e)} · ${who}`, e.notes].filter(Boolean).join("\n\n");
-  $("detailEdit").hidden = $("detailDelete").hidden = e.is_owner === false;
+  $("detailEdit").hidden = $("detailDelete").hidden = e.is_owner === false || e.source === "google";
   renderDetailExtra(e);
   $("detail").classList.add("open");
   $("detail").setAttribute("aria-hidden", "false");
@@ -601,6 +601,35 @@ async function searchAvailability() {
   } catch (err) { if (err.status !== 401) box.replaceChildren(make("div", "empty", `探せませんでした（${err.message}）`)); }
 }
 
+// ---------- Google Calendar ----------
+async function loadGoogleStatus() {
+  const box = $("googleStatus");
+  try {
+    const s = await api("GET", "/api/google");
+    $("googleConnect").hidden = s.connected || !s.configured;
+    $("googleSync").hidden = $("googleDisconnect").hidden = !s.connected;
+    if (!s.configured) box.textContent = "サーバー側の設定（GOOGLE_TOKEN_KEY）がまだのため利用できません。";
+    else if (!s.connected) box.textContent = "未連携です。";
+    else box.textContent = `連携中：${s.google_email ?? "Googleアカウント"}（${s.calendar_id === "primary" ? "メインのカレンダー" : s.calendar_id}）\n最終同期：${s.last_synced_at ? new Date(s.last_synced_at).toLocaleString("ja-JP") : "まだ"}${s.last_error ? `\n⚠ ${s.last_error}` : ""}`;
+    box.style.whiteSpace = "pre-wrap";
+  } catch { box.textContent = "状態を読み込めませんでした"; }
+}
+async function syncGoogle() {
+  $("googleSync").disabled = true;
+  try {
+    const r = await api("POST", "/api/google/sync");
+    toast(`同期しました（更新 ${r.upserted}件 / 削除 ${r.deleted}件）`);
+    loadRange(true);
+  } catch (err) { toast(err.data?.message ?? "同期できませんでした"); }
+  finally { $("googleSync").disabled = false; loadGoogleStatus(); }
+}
+async function disconnectGoogle() {
+  if (!confirm("Googleカレンダーとの連携を解除しますか？取り込んだ予定はこのカレンダーから消えます（Google側の予定は消えません）。")) return;
+  try { const r = await api("DELETE", "/api/google"); toast(`連携を解除しました（${r.removed_events}件の予定を削除）`); loadRange(true); }
+  catch { toast("解除できませんでした"); }
+  loadGoogleStatus();
+}
+
 // ---------- API keys ----------
 async function loadTokens() {
   const list = $("tokenList");
@@ -669,7 +698,9 @@ function showGate() {
 async function boot() {
   let me;
   try { me = await api("GET", "/api/me"); } catch { return; }
-  if (location.search.includes("login_error")) history.replaceState(null, "", location.pathname);
+  const googleResult = new URLSearchParams(location.search).get("google");
+  if (googleResult) toast({ connected: "Googleカレンダーと連携しました", denied: "連携がキャンセルされました", grant_error: "Googleの許可を取得できませんでした", state_error: "確認に失敗しました。もう一度お試しください" }[googleResult] ?? "");
+  if (location.search) history.replaceState(null, "", location.pathname);
   $("gate").hidden = true;
   $("app").hidden = false;
   $("sideFoot").textContent = `${me.name || me.email} でログイン中`;
@@ -701,6 +732,10 @@ $("importFile").onchange = (e) => { const f = e.target.files?.[0]; e.target.valu
 $("availButton").onclick = async () => { await loadGroups(); openAvailability(); };
 $("availSearch").onclick = searchAvailability;
 $("availClose").onclick = () => $("availModal").classList.remove("open");
+$("googleButton").onclick = () => { $("googleModal").classList.add("open"); loadGoogleStatus(); };
+$("googleClose").onclick = () => $("googleModal").classList.remove("open");
+$("googleSync").onclick = syncGoogle;
+$("googleDisconnect").onclick = disconnectGoogle;
 $("groupsButton").onclick = async () => { $("groupsModal").classList.add("open"); await loadGroups(); renderGroupDetails(); };
 $("groupsClose").onclick = () => $("groupsModal").classList.remove("open");
 $("groupCreate").onclick = createGroup;
@@ -708,6 +743,6 @@ $("tokensButton").onclick = () => { $("tokenIssued").hidden = true; $("tokensMod
 $("tokensClose").onclick = () => $("tokensModal").classList.remove("open");
 $("tokenCreate").onclick = createToken;
 $("logout").onclick = async () => { await fetch("/auth/logout", { method: "POST" }); location.href = "/"; };
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForm(); closeDetail(); $("tokensModal").classList.remove("open"); $("groupsModal").classList.remove("open"); $("availModal").classList.remove("open"); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForm(); closeDetail(); $("tokensModal").classList.remove("open"); $("groupsModal").classList.remove("open"); $("availModal").classList.remove("open"); $("googleModal").classList.remove("open"); } });
 
 boot();

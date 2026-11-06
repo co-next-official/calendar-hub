@@ -5,6 +5,8 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // Google Calendar mirrors are refreshed every 30 minutes.
+  "triggers": { "crons": ["*/30 * * * *"] },
   // Static UI is served from public/. API and auth routes always hit the Worker first.
   "assets": {
     "directory": "public",
@@ -26,4 +28,5 @@
   }
   // Secrets (set with `npx wrangler secret put <NAME>`, and in .dev.vars locally):
   //   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_SECRET
+  //   GOOGLE_TOKEN_KEY (Google Calendar integration; `openssl rand -base64 32`)
 }

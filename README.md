@@ -32,8 +32,11 @@ npm run db:migrate:remote
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put SESSION_SECRET
+npx wrangler secret put GOOGLE_TOKEN_KEY     # Google カレンダー連携を使う場合。`openssl rand -base64 32` の値
 npm run deploy
 ```
+
+Google カレンダー連携を使う場合は、Google Cloud Console で「Google Calendar API」を有効にし、OAuth 同意画面のスコープに `.../auth/calendar.readonly` を追加する。承認済みリダイレクト URI には `https://<デプロイ先>/auth/google/calendar/callback` も登録する。同期は Cron Trigger（30分ごと）と画面の「今すぐ同期」で動く。ローカルでは `wrangler dev --test-scheduled` のうえで `/cdn-cgi/handler/scheduled` を叩くと cron を試せる。
 
 Google Cloud Console の OAuth クライアント（ウェブアプリケーション）には、承認済みリダイレクト URI として `https://<デプロイ先>/auth/google/callback` と `http://localhost:8787/auth/google/callback` を登録する。
 
