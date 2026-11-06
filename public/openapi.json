@@ -198,6 +198,12 @@
                 }
               }
             }
+          },
+          "client_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "description": "他人の予定で busy_only のときは title が「予定あり」になり、notes と participants は空"
@@ -252,6 +258,11 @@
             "type": "string",
             "description": "IANA タイムゾーン（例 Asia/Tokyo）",
             "default": "Asia/Tokyo"
+          },
+          "client_ref": {
+            "type": "string",
+            "pattern": "^[w:.-]{1,80}$",
+            "description": "外部ツール用の重複防止キー。同じ値で再送すると既存の予定を返す（duplicate: true）"
           }
         },
         "description": "終日なら start_date（と end_date）、時刻付きなら start_at と end_at を送る"
@@ -898,6 +909,42 @@
           },
           "404": {
             "description": "グループが見つからない"
+          }
+        }
+      }
+    },
+    "/api/events/by-ref": {
+      "get": {
+        "operationId": "listEventsByRef",
+        "summary": "client_ref が prefix で始まる自分の予定（日付に関係なく）",
+        "parameters": [
+          {
+            "name": "prefix",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "予定",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Event"
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

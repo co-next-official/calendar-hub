@@ -57,3 +57,17 @@ curl -H "Authorization: Bearer $CALENDAR_HUB_KEY" \
 旧 Calendar Hub（ChatGPT Sites 版）のデータは、旧サイトにログインした状態で `/api/events` を開いて JSON を保存し、画面の「旧Calendar Hubから取り込む」で読み込む。同じファイルを何度取り込んでも重複しない。
 
 認可の考え方は `docs/authorization.md`、要件は `docs/requirements.md`。
+
+## Orbit 連携（`tools/orbit-sync.mjs`）
+
+Orbit とは API 同士でゆるくつなぐ（Orbit 側は変更しない）。Calendar Hub の書き込み可能な API キーと Orbit のトークンを環境変数に入れて実行する。
+
+```bash
+export CALENDAR_HUB_URL=https://<デプロイ先> CALENDAR_HUB_KEY=chk_... ORBIT_API=... ORBIT_TOKEN=...
+node tools/orbit-sync.mjs due --dry-run          # Orbit の TODO 期限を「〆」の終日予定に反映（差分を表示）
+node tools/orbit-sync.mjs due                    # 反映。完了・キャンセル・期限なしになった TODO の予定は消える
+node tools/orbit-sync.mjs block <todo_id> --minutes 90        # 空き時間から作業枠を提案
+node tools/orbit-sync.mjs block <todo_id> --minutes 90 --yes  # 提案どおりに作る
+```
+
+何度実行しても重複しない（`client_ref` で対応づけている）。定期実行したい場合はタスクスケジューラ等で `due` を回す。

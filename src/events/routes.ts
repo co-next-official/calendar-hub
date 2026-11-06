@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { createEvent, deleteEvent, findByLegacyId, getDb, getEvent, toFields, updateEvent } from "../db/events";
 import { getVisibleEvent, listVisibleEvents } from "../db/sharing";
-import { and, eq, gt, isNotNull, lt, ne } from "drizzle-orm";
+import { and, eq, gt, isNotNull, lt, ne, sql } from "drizzle-orm";
 import type { Db } from "../db/events";
 import { events, type EventRow } from "../db/schema";
 import type { AppEnv } from "../env";
@@ -10,6 +10,7 @@ import { isDate, isTimeZone, validateEvent } from "./validate";
 
 const MAX_RANGE_DAYS = 400;
 const LEGACY_ID_RE = /^[\w-]{1,80}$/;
+const CLIENT_REF_RE = /^[\w:.-]{1,80}$/;
 
 async function readBody(req: Request): Promise<Record<string, unknown> | null> {
   try {
@@ -48,8 +49,29 @@ export function eventRoutes() {
     const result = validateEvent(body);
     if (!result.ok) return c.json({ error: result.error }, 400);
     const db = getDb(c.env.DB);
-    const row = await createEvent(db, c.get("user").id, result.value, { source: c.get("auth").kind === "token" ? "api" : "web" });
+    // client_ref makes creation idempotent for external tools: the same ref returns the existing event.
+    let legacyId: string | null = null;
+    if (body.client_ref !== undefined) {
+      if (typeof body.client_ref !== "string" || !CLIENT_REF_RE.test(body.client_ref)) return c.json({ error: "invalid_client_ref" }, 400);
+      legacyId = `ref:${body.client_ref}`;
+      const existing = await findByLegacyId(db, c.get("user").id, legacyId);
+      if (existing) return c.json({ ...(await getVisibleEvent(db, c.get("user"), existing.id)), duplicate: true }, 200);
+    }
+    const row = await createEvent(db, c.get("user").id, result.value, { source: c.get("auth").kind === "token" ? "api" : "web", legacyId });
     return c.json({ ...(await getVisibleEvent(db, c.get("user"), row.id)), conflicts: await ownConflicts(db, c.get("user").id, row) }, 201);
+  });
+
+  // Events this owner created with a client_ref starting with `prefix` (any date). Declared before /:id.
+  r.get("/by-ref", async (c) => {
+    const prefix = c.req.query("prefix") ?? "";
+    if (!CLIENT_REF_RE.test(prefix)) return c.json({ error: "invalid_prefix" }, 400);
+    const db = getDb(c.env.DB), me = c.get("user");
+    const rows = await db.select({ id: events.id }).from(events)
+      .where(and(eq(events.ownerId, me.id), sql`substr(${events.legacyId}, 1, ${4 + prefix.length}) = ${"ref:" + prefix}`))
+      .limit(1000);
+    const out = [];
+    for (const r of rows) out.push(await getVisibleEvent(db, me, r.id));
+    return c.json({ events: out });
   });
 
   r.get("/:id", async (c) => {

@@ -93,3 +93,22 @@ describe("/api/import/calendar-hub", () => {
     expect(zonedToUtc("2026-11-12", "15:00", "Asia/Tokyo")).toBe("2026-11-12T06:00:00.000Z");
   });
 });
+
+describe("client_ref for external tools", () => {
+  it("makes creation idempotent and lists events by ref prefix", async () => {
+    const { alice, bob, call } = await setup();
+    const body = { title: "〆 資料", all_day: true, start_date: "2026-11-20", client_ref: "orbit-todo:123" };
+    const first = await call(alice, "POST", "/api/events", body);
+    expect(first.status).toBe(201);
+    expect(first.body.client_ref).toBe("orbit-todo:123");
+    const again = await call(alice, "POST", "/api/events", body);
+    expect(again.status).toBe(200);
+    expect(again.body).toMatchObject({ id: first.body.id, duplicate: true });
+    await call(alice, "POST", "/api/events", { ...body, client_ref: "other:1" });
+
+    const listed = await call(alice, "GET", "/api/events/by-ref?prefix=orbit-todo:");
+    expect(listed.body.events.map((e: any) => e.client_ref)).toEqual(["orbit-todo:123"]);
+    expect((await call(bob, "GET", "/api/events/by-ref?prefix=orbit-todo:")).body.events).toEqual([]);
+    expect((await call(alice, "POST", "/api/events", { ...body, client_ref: "bad ref!" })).status).toBe(400);
+  });
+});

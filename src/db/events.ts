@@ -83,5 +83,6 @@ export function toApi(row: EventRow) {
     start_date: row.startDate, end_date: row.endDate, start_at: row.startAt, end_at: row.endAt,
     timezone: row.timezone, visibility: row.visibility, busy_only: row.busyOnly, source: row.source,
     version: row.version, created_at: row.createdAt, updated_at: row.updatedAt,
+    client_ref: row.legacyId?.startsWith("ref:") ? row.legacyId.slice(4) : null,
   };
 }

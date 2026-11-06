@@ -69,7 +69,7 @@ export function presentEvent(r: Joined, me: User, parts: ParticipantRow[]) {
   const base = toApi(r.event);
   const participants = parts.map((p) => ({ id: p.id, email: p.email, name: p.guestName, guest: p.email === null, response: p.response }));
   if (isOwner) return { ...base, group_id: r.event.groupId, is_owner: true, owner_name: r.ownerName, participants };
-  const shared = { ...base, is_owner: false, owner_name: r.ownerName || r.ownerEmail, my_response: myRow?.response ?? null, group_id: r.event.groupId };
+  const shared = { ...base, client_ref: null, is_owner: false, owner_name: r.ownerName || r.ownerEmail, my_response: myRow?.response ?? null, group_id: r.event.groupId };
   if (r.event.busyOnly) return { ...shared, title: "予定あり", notes: "", participants: [], source: "web" as const, category: "personal" as const };
   return { ...shared, participants };
 }
