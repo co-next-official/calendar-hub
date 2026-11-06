@@ -14,6 +14,7 @@ import { mcpRoutes } from "./mcp/routes";
 import { eventRoutes, importRoutes } from "./events/routes";
 import { groupRoutes } from "./groups/routes";
 import { availabilityRoutes } from "./availability/routes";
+import { reminderRoutes } from "./reminders/routes";
 import { guestRoutes, sharingRoutes } from "./events/sharing-routes";
 
 export const defaultDeps: Deps = { exchangeCode, google: realGoogleApi };
@@ -52,6 +53,7 @@ export function createApp(deps: Deps = defaultDeps) {
   app.route("/api/import", importRoutes());
   app.route("/api/groups", groupRoutes());
   app.route("/api/availability", availabilityRoutes());
+  app.route("/api/reminders", reminderRoutes());
   app.route("/api/google", googleApiRoutes(deps));
   app.route("/api/feed", feedApiRoutes());
 
