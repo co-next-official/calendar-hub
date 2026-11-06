@@ -9,6 +9,9 @@ export default defineConfig(async () => {
         wrangler: { configPath: "./wrangler.jsonc" },
         miniflare: {
           bindings: {
+            // Tests define their own bindings so they don't depend on wrangler.jsonc vars
+            // (e.g. a production ALLOWED_EMAILS allow-list would otherwise 401 the test logins).
+            ALLOWED_EMAILS: "",
             GOOGLE_CLIENT_ID: "test-client-id",
             GOOGLE_CLIENT_SECRET: "test-client-secret",
             SESSION_SECRET: "test-session-secret-0123456789abcdef",

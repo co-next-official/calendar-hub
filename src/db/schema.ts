@@ -9,6 +9,7 @@ export const users = sqliteTable("users", {
   email: text("email").notNull(),
   name: text("name").notNull().default(""),
   avatarUrl: text("avatar_url"),
+  reminderDefaultMinutes: integer("reminder_default_minutes"), // nullable; null = no default reminder
   createdAt: text("created_at").notNull().default(now),
   lastLoginAt: text("last_login_at").notNull().default(now),
 });
@@ -163,6 +164,31 @@ export const calendarFeeds = sqliteTable("calendar_feeds", {
   revokedAt: text("revoked_at"),
 }, (t) => [index("calendar_feeds_user_idx").on(t.userId)]);
 
+// Per-event reminder override. No row = use the user's default; a row with
+// minutesBefore = null explicitly disables the reminder for that event.
+export const eventReminders = sqliteTable("event_reminders", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  minutesBefore: integer("minutes_before"),
+  // ISO timestamp when the reminder push was sent (dedup).
+  sentAt: text("sent_at"),
+  createdAt: text("created_at").notNull().default(now),
+}, (t) => [uniqueIndex("event_reminders_event_idx").on(t.eventId)]);
+
+// Web Push subscriptions. One browser/endpoint per row.
+export const pushSubscriptions = sqliteTable("push_subscriptions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: text("created_at").notNull().default(now),
+  lastSuccessAt: text("last_success_at"),
+  failureCount: integer("failure_count").notNull().default(0),
+}, (t) => [index("push_subscriptions_user_idx").on(t.userId)]);
+
+export type EventReminder = typeof eventReminders.$inferSelect;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type GoogleConnection = typeof googleConnections.$inferSelect;
 export type Group = typeof groups.$inferSelect;
