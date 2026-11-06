@@ -36,3 +36,21 @@ npm run deploy
 ```
 
 Google Cloud Console の OAuth クライアント（ウェブアプリケーション）には、承認済みリダイレクト URI として `https://<デプロイ先>/auth/google/callback` と `http://localhost:8787/auth/google/callback` を登録する。
+
+## API
+
+仕様は `public/openapi.json`（デプロイ後は `/openapi.json`）。
+
+- ブラウザはセッション Cookie、AI やスクリプトは画面の「AI用APIキー」で発行したキーを `Authorization: Bearer chk_...` で送る
+- キーは既定で読み取り専用。書き込みを許可したキーでも、キーの持ち主の予定しか触れない
+- キーでの削除は `?confirm=true` が必要（ユーザーに確認してから付ける）。キーでの操作はすべて記録される
+- 同時編集は `version` で検出し、古ければ 409 と最新の内容を返す
+
+```bash
+curl -H "Authorization: Bearer $CALENDAR_HUB_KEY" \
+  "https://<デプロイ先>/api/events?from=2026-11-01&to=2026-12-01"
+```
+
+旧 Calendar Hub（ChatGPT Sites 版）のデータは、旧サイトにログインした状態で `/api/events` を開いて JSON を保存し、画面の「旧Calendar Hubから取り込む」で読み込む。同じファイルを何度取り込んでも重複しない。
+
+認可の考え方は `docs/authorization.md`、要件は `docs/requirements.md`。
