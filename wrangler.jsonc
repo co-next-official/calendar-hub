@@ -22,6 +22,12 @@
       "migrations_dir": "drizzle"
     }
   ],
+  // Abuse protection (per IP for sign-in and guest links, per user/API key for the API).
+  "ratelimits": [
+    { "name": "AUTH_LIMITER", "namespace_id": "4101", "simple": { "limit": 30, "period": 60 } },
+    { "name": "GUEST_LIMITER", "namespace_id": "4102", "simple": { "limit": 30, "period": 60 } },
+    { "name": "API_LIMITER", "namespace_id": "4103", "simple": { "limit": 300, "period": 60 } }
+  ],
   "vars": {
     // Comma-separated Google account emails allowed to sign in. Empty = anyone with a Google account.
     "ALLOWED_EMAILS": ""

@@ -7,6 +7,7 @@ import { getDb } from "./db/events";
 import { realGoogleApi } from "./google/client";
 import { googleApiRoutes, googleConnectRoutes } from "./google/routes";
 import { syncAll } from "./google/sync";
+import { clientIp, rateLimit, securityHeaders } from "./lib/security";
 import { eventRoutes, importRoutes } from "./events/routes";
 import { groupRoutes } from "./groups/routes";
 import { availabilityRoutes } from "./availability/routes";
@@ -17,12 +18,19 @@ export const defaultDeps: Deps = { exchangeCode, google: realGoogleApi };
 export function createApp(deps: Deps = defaultDeps) {
   const app = new Hono<AppEnv>();
 
+  app.use("/api/*", securityHeaders);
+  app.use("/auth/*", securityHeaders);
+  app.use("/guest/api/*", securityHeaders);
+  app.use("/auth/*", rateLimit("AUTH_LIMITER", clientIp));
+  app.use("/guest/api/*", rateLimit("GUEST_LIMITER", clientIp));
+
   app.get("/api/health", (c) => c.json({ ok: true }));
   app.route("/auth/google/calendar", googleConnectRoutes(deps));
   app.route("/auth", authRoutes(deps));
   app.route("/guest/api", guestRoutes());
 
   app.use("/api/*", requireUser);
+  app.use("/api/*", rateLimit("API_LIMITER", (c) => (c.get("auth").kind === "token" ? `t:${(c.get("auth") as { tokenId: string }).tokenId}` : `u:${c.get("user").id}`)));
   app.route("/api/me", meRoutes());
   app.use("/api/tokens/*", requireSession);
   app.use("/api/tokens", requireSession);

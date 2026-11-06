@@ -11,6 +11,9 @@ export type Env = {
   SESSION_SECRET?: string;
   /** base64 of 32 random bytes; encrypts Google OAuth tokens at rest. */
   GOOGLE_TOKEN_KEY?: string;
+  AUTH_LIMITER?: RateLimit;
+  GUEST_LIMITER?: RateLimit;
+  API_LIMITER?: RateLimit;
 };
 
 /** External calls the app depends on, injectable for tests. */
