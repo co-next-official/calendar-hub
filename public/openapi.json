@@ -125,8 +125,61 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "is_owner": {
+            "type": "boolean"
+          },
+          "owner_name": {
+            "type": "string"
+          },
+          "group_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "my_response": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pending",
+              "yes",
+              "no",
+              "maybe",
+              null
+            ],
+            "description": "自分が参加者のときの回答"
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "guest": {
+                  "type": "boolean"
+                },
+                "response": {
+                  "type": "string"
+                }
+              }
+            }
           }
-        }
+        },
+        "description": "他人の予定で busy_only のときは title が「予定あり」になり、notes と participants は空"
       },
       "EventCreate": {
         "type": "object",
@@ -293,7 +346,7 @@
     "/api/events": {
       "get": {
         "operationId": "listEvents",
-        "summary": "期間内の予定一覧",
+        "summary": "期間内の予定一覧（自分の予定と、共有された予定）",
         "parameters": [
           {
             "name": "from",
@@ -543,6 +596,154 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events/{id}/response": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "respondToEvent",
+        "summary": "共有された予定に回答（参加者のみ）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "response"
+                ],
+                "properties": {
+                  "response": {
+                    "type": "string",
+                    "enum": [
+                      "yes",
+                      "no",
+                      "maybe"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "参加者ではない",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "見つからない",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events/{id}/ics": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "exportEventIcs",
+        "summary": "予定を .ics で取得",
+        "responses": {
+          "200": {
+            "description": "iCalendar",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "見つからない",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/groups": {
+      "get": {
+        "operationId": "listGroups",
+        "summary": "参加中のグループ一覧（作成・招待はブラウザからのみ）",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "is_owner": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }

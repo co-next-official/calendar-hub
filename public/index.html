@@ -104,6 +104,13 @@
     <label for="category">分類</label>
     <select id="category"><option value="work">仕事</option><option value="personal">個人</option><option value="team">チーム</option></select>
     <label for="notes">メモ（任意）</label><textarea id="notes" maxlength="2000"></textarea>
+    <fieldset class="share-box" id="shareBox">
+      <legend>共有</legend>
+      <select id="visibility"><option value="private">自分だけ</option><option value="participants">指定した人</option><option value="group">グループ</option></select>
+      <div id="participantsField" hidden><label for="participants">共有する人のGoogleアカウントのメール（改行・カンマ区切り）</label><textarea id="participants" placeholder="bob@example.com"></textarea></div>
+      <div id="groupField" hidden><label for="groupSelect">グループ</label><select id="groupSelect"></select></div>
+      <label class="checkbox" id="busyOnlyField" hidden><input id="busyOnly" type="checkbox"> 相手には「予定あり」とだけ見せる（タイトルやメモは見せない）</label>
+    </fieldset>
     <div class="actions"><button type="button" id="cancel">キャンセル</button><button class="save" type="submit" id="save">保存</button></div>
   </form>
 </div>
@@ -114,6 +121,7 @@
     <div class="eyebrow">EVENT DETAILS</div>
     <h2 id="detailTitle"></h2>
     <p id="detailMeta" style="white-space:pre-wrap"></p>
+    <div id="detailExtra"></div>
     <div class="detail-actions"><button id="detailEdit">編集</button><button id="detailDelete" class="delete">削除</button></div>
   </div>
 </div>

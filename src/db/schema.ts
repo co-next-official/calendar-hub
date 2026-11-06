@@ -36,6 +36,8 @@ export const events = sqliteTable("events", {
   timezone: text("timezone").notNull().default("Asia/Tokyo"),
   visibility: text("visibility", { enum: ["private", "participants", "group"] }).notNull().default("private"),
   busyOnly: integer("busy_only", { mode: "boolean" }).notNull().default(false),
+  // Set when visibility = 'group'. No FK so the events table needs no rebuild; a deleted group simply matches nobody.
+  groupId: text("group_id"),
   source: text("source", { enum: ["web", "api", "import"] }).notNull().default("web"),
   legacyId: text("legacy_id"),
   version: integer("version").notNull().default(1),
@@ -102,6 +104,35 @@ export const groupMembers = sqliteTable("group_members", {
   index("group_members_email_idx").on(t.email),
   index("group_members_user_idx").on(t.userId),
 ]);
+
+// People an event is shared with (visibility = 'participants'), and guests who answered through a link.
+export const eventParticipants = sqliteTable("event_participants", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  email: text("email"),
+  guestName: text("guest_name"),
+  // Random key kept in the guest's browser so they can change their answer.
+  guestKeyHash: text("guest_key_hash"),
+  inviteId: text("invite_id"),
+  response: text("response", { enum: ["pending", "yes", "no", "maybe"] }).notNull().default("pending"),
+  createdAt: text("created_at").notNull().default(now),
+  respondedAt: text("responded_at"),
+}, (t) => [
+  uniqueIndex("event_participants_event_email_idx").on(t.eventId, t.email),
+  uniqueIndex("event_participants_guest_idx").on(t.eventId, t.guestKeyHash),
+  index("event_participants_email_idx").on(t.email),
+  check("event_participants_who", sql`(${t.email} is not null) or (${t.guestName} is not null and ${t.guestKeyHash} is not null)`),
+]);
+
+// Expiring guest links. Only the hash of the link token is stored.
+export const eventInvites = sqliteTable("event_invites", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  createdAt: text("created_at").notNull().default(now),
+  expiresAt: text("expires_at").notNull(),
+  revokedAt: text("revoked_at"),
+}, (t) => [index("event_invites_event_idx").on(t.eventId)]);
 
 export type User = typeof users.$inferSelect;
 export type Group = typeof groups.$inferSelect;

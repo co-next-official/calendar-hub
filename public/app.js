@@ -100,7 +100,7 @@ async function loadRange(force = false) {
 
 // ---------- rendering ----------
 function eventButton(p, extra = "") {
-  const b = make("button", `event ${p.e.category}${p.allDay ? " all-day" : ""}${extra}`);
+  const b = make("button", `event ${p.e.category}${p.allDay ? " all-day" : ""}${p.e.is_owner === false ? " shared" : ""}${extra}`);
   b.type = "button";
   b.title = `${timeLabel(p.e)} ${p.e.title}`;
   b.addEventListener("click", (ev) => { ev.stopPropagation(); showDetail(p.e.id); });
@@ -274,6 +274,13 @@ function openForm(id = null, date = state.selected, hour = 10) {
   $("category").value = e?.category ?? "personal";
   $("notes").value = e?.notes ?? "";
   $("allDay").checked = e ? e.all_day : false;
+  const share = sharingOf(e);
+  $("visibility").value = share.visibility;
+  $("participants").value = share.participants.join("\n");
+  refreshGroupSelect();
+  if (share.group_id) $("groupSelect").value = share.group_id;
+  $("busyOnly").checked = share.busy_only;
+  toggleShare();
   if (e && !e.all_day) {
     const s = new Date(e.start_at), en = new Date(e.end_at);
     $("date").value = keyDate(s);
@@ -317,7 +324,12 @@ async function save(ev) {
   $("save").disabled = true;
   const editing = state.editing;
   try {
-    const saved = editing ? await api("PATCH", `/api/events/${editing.id}`, { ...body, version: editing.version }) : await api("POST", "/api/events", body);
+    let saved = editing ? await api("PATCH", `/api/events/${editing.id}`, { ...body, version: editing.version }) : await api("POST", "/api/events", body);
+    const share = sharingFromForm();
+    if (JSON.stringify(share) !== JSON.stringify(sharingOf(editing))) {
+      try { saved = await api("PUT", `/api/events/${saved.id}/sharing`, share); }
+      catch (err) { toast(`予定は保存しましたが共有の設定に失敗しました（${err.message}）`); }
+    }
     state.events = editing ? state.events.map((x) => (x.id === saved.id ? saved : x)) : [...state.events, saved];
     state.selected = saved.all_day ? parseKey(saved.start_date) : startOfDay(new Date(saved.start_at));
     state.anchor = new Date(state.selected);
@@ -339,10 +351,57 @@ function showDetail(id) {
   state.activeId = id;
   $("detailTitle").textContent = e.title;
   const day = e.all_day ? parseKey(e.start_date) : new Date(e.start_at);
-  $("detailMeta").textContent = [`${fmt(day, { year: "numeric", month: "long", day: "numeric", weekday: "long" })} · ${timeLabel(e)} · ${CATEGORY[e.category]}`, e.notes].filter(Boolean).join("\n\n");
+  const who = e.is_owner === false ? `${e.owner_name} さんの予定` : CATEGORY[e.category];
+  $("detailMeta").textContent = [`${fmt(day, { year: "numeric", month: "long", day: "numeric", weekday: "long" })} · ${timeLabel(e)} · ${who}`, e.notes].filter(Boolean).join("\n\n");
+  $("detailEdit").hidden = $("detailDelete").hidden = e.is_owner === false;
+  renderDetailExtra(e);
   $("detail").classList.add("open");
   $("detail").setAttribute("aria-hidden", "false");
 }
+const RESPONSE = { yes: "参加", no: "不参加", maybe: "未定", pending: "未回答" };
+const VISIBILITY = { private: "自分だけ", participants: "指定した人に共有", group: "グループに共有" };
+
+function renderDetailExtra(e) {
+  const box = $("detailExtra");
+  box.replaceChildren();
+  if (e.is_owner !== false && e.visibility !== "private") {
+    const g = state.groups.find((x) => x.id === e.group_id);
+    box.append(make("div", "participant-list", `${VISIBILITY[e.visibility]}${g ? `（${g.name}）` : ""}${e.busy_only ? " · 相手には「予定あり」のみ" : ""}`));
+  }
+  if (e.participants?.length) {
+    box.append(make("div", "participant-list", e.participants.map((p) => `${p.name || p.email}：${RESPONSE[p.response]}`).join("　")));
+  }
+  const row = make("div", "detail-extra-row");
+  if (e.my_response !== null && e.my_response !== undefined) {
+    for (const r of ["yes", "maybe", "no"]) {
+      const b = make("button", e.my_response === r ? "on" : "", RESPONSE[r]);
+      b.type = "button";
+      b.onclick = async () => {
+        const updated = await api("POST", `/api/events/${e.id}/response`, { response: r });
+        state.events = state.events.map((x) => (x.id === updated.id ? updated : x));
+        showDetail(e.id);
+      };
+      row.append(b);
+    }
+  }
+  if (e.is_owner !== false) {
+    const link = make("button", "", "ゲスト招待リンク");
+    link.type = "button";
+    link.onclick = async () => {
+      try {
+        const inv = await api("POST", `/api/events/${e.id}/invites`, { expires_in_days: 14 });
+        await navigator.clipboard.writeText(inv.url).catch(() => {});
+        prompt("招待リンク（14日間有効。コピーして送ってください）", inv.url);
+      } catch (err) { toast(`作成できませんでした（${err.message}）`); }
+    };
+    row.append(link);
+  }
+  const ics = make("a", "", "カレンダーアプリに追加（.ics）");
+  ics.href = `/api/events/${e.id}/ics`;
+  row.append(ics);
+  box.append(row);
+}
+
 function closeDetail() { $("detail").classList.remove("open"); $("detail").setAttribute("aria-hidden", "true"); state.activeId = null; }
 
 async function removeActive() {
@@ -465,7 +524,35 @@ async function createGroup() {
   catch { toast("作成できませんでした"); }
 }
 
-function refreshGroupSelect() { /* filled in by the sharing UI */ }
+function refreshGroupSelect() {
+  const sel = $("groupSelect");
+  const current = sel.value;
+  sel.replaceChildren(...state.groups.map((g) => { const o = make("option", "", g.name); o.value = g.id; return o; }));
+  if (current) sel.value = current;
+}
+
+function toggleShare() {
+  const v = $("visibility").value;
+  $("participantsField").hidden = v !== "participants";
+  $("groupField").hidden = v !== "group";
+  $("busyOnlyField").hidden = v === "private";
+  if (v === "group" && !state.groups.length) toast("先にサイドバーの「グループを管理」でグループを作ってください");
+}
+
+function sharingFromForm() {
+  const visibility = $("visibility").value;
+  const participants = $("participants").value.split(/[\s,、]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+  return { visibility, participants: visibility === "participants" ? participants : [], group_id: visibility === "group" ? $("groupSelect").value : undefined, busy_only: visibility !== "private" && $("busyOnly").checked };
+}
+
+function sharingOf(e) {
+  return {
+    visibility: e?.visibility ?? "private",
+    participants: (e?.participants ?? []).filter((p) => !p.guest).map((p) => p.email),
+    group_id: e?.visibility === "group" ? e.group_id : undefined,
+    busy_only: (e?.visibility ?? "private") !== "private" && Boolean(e?.busy_only),
+  };
+}
 
 // ---------- API keys ----------
 async function loadTokens() {
@@ -550,6 +637,7 @@ async function boot() {
 $("create").onclick = $("create2").onclick = () => openForm();
 $("cancel").onclick = closeForm;
 $("allDay").onchange = toggleAllDay;
+$("visibility").onchange = toggleShare;
 $("form").onsubmit = save;
 $("prev").onclick = () => move(-1);
 $("next").onclick = () => move(1);

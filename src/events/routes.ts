@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { createEvent, deleteEvent, findByLegacyId, getDb, getEvent, listEvents, toApi, toFields, updateEvent } from "../db/events";
+import { createEvent, deleteEvent, findByLegacyId, getDb, getEvent, toFields, updateEvent } from "../db/events";
+import { getVisibleEvent, listVisibleEvents } from "../db/sharing";
 import type { AppEnv } from "../env";
 import { convertLegacyEvent } from "./legacy";
 import { isDate, isTimeZone, validateEvent } from "./validate";
@@ -24,8 +25,7 @@ export function eventRoutes() {
     if (!isDate(from) || !isDate(to) || from >= to) return c.json({ error: "from_and_to_required" }, 400);
     if (Date.parse(to) - Date.parse(from) > MAX_RANGE_DAYS * 86_400_000) return c.json({ error: "range_too_long" }, 400);
     if (q && q.length > 120) return c.json({ error: "invalid_q" }, 400);
-    const rows = await listEvents(getDb(c.env.DB), c.get("user").id, { from, to, q });
-    return c.json({ events: rows.map(toApi) });
+    return c.json({ events: await listVisibleEvents(getDb(c.env.DB), c.get("user"), { from, to, q }) });
   });
 
   r.post("/", async (c) => {
@@ -33,13 +33,14 @@ export function eventRoutes() {
     if (!body) return c.json({ error: "invalid_body" }, 400);
     const result = validateEvent(body);
     if (!result.ok) return c.json({ error: result.error }, 400);
-    const row = await createEvent(getDb(c.env.DB), c.get("user").id, result.value, { source: "web" });
-    return c.json(toApi(row), 201);
+    const db = getDb(c.env.DB);
+    const row = await createEvent(db, c.get("user").id, result.value, { source: c.get("auth").kind === "token" ? "api" : "web" });
+    return c.json(await getVisibleEvent(db, c.get("user"), row.id), 201);
   });
 
   r.get("/:id", async (c) => {
-    const row = await getEvent(getDb(c.env.DB), c.get("user").id, c.req.param("id"));
-    return row ? c.json(toApi(row)) : c.json({ error: "not_found" }, 404);
+    const row = await getVisibleEvent(getDb(c.env.DB), c.get("user"), c.req.param("id"));
+    return row ? c.json(row) : c.json({ error: "not_found" }, 404);
   });
 
   r.patch("/:id", async (c) => {
@@ -53,8 +54,8 @@ export function eventRoutes() {
     if (!result.ok) return c.json({ error: result.error }, 400);
     const updated = await updateEvent(db, ownerId, id, body.version as number, result.value);
     if (updated.status === "not_found") return c.json({ error: "not_found" }, 404);
-    if (updated.status === "conflict") return c.json({ error: "version_conflict", current: toApi(updated.row) }, 409);
-    return c.json(toApi(updated.row));
+    if (updated.status === "conflict") return c.json({ error: "version_conflict", current: await getVisibleEvent(db, c.get("user"), id) }, 409);
+    return c.json(await getVisibleEvent(db, c.get("user"), id));
   });
 
   r.delete("/:id", async (c) => {
