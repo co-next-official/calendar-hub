@@ -15,4 +15,6 @@ export type Deps = {
   exchangeCode: (p: { clientId: string; clientSecret: string; code: string; codeVerifier: string; redirectUri: string }) => Promise<GoogleClaims>;
 };
 
-export type AppEnv = { Bindings: Env; Variables: { user: User } };
+export type AuthContext = { kind: "session" } | { kind: "token"; tokenId: string; scopes: ("read" | "write")[] };
+
+export type AppEnv = { Bindings: Env; Variables: { user: User; auth: AuthContext } };

@@ -377,6 +377,50 @@ async function importLegacy(file) {
   }
 }
 
+// ---------- API keys ----------
+async function loadTokens() {
+  const list = $("tokenList");
+  try {
+    const { tokens } = await api("GET", "/api/tokens");
+    list.replaceChildren();
+    if (!tokens.length) { list.textContent = "まだありません"; return; }
+    for (const t of tokens) {
+      const row = make("div", "token-row");
+      const info = make("div");
+      const used = t.last_used_at ? `最終利用 ${new Date(t.last_used_at).toLocaleString("ja-JP")}` : "未使用";
+      info.append(make("b", "", t.name), make("small", "", `${t.scopes.includes("write") ? "読み書き" : "読み取り"} · ${t.revoked_at ? "失効済み" : used}`));
+      row.append(info);
+      if (!t.revoked_at) {
+        const btn = make("button", "", "失効");
+        btn.type = "button";
+        btn.onclick = async () => {
+          if (!confirm(`「${t.name}」を失効させますか？このキーを使っているAIは使えなくなります。`)) return;
+          await api("DELETE", `/api/tokens/${t.id}`);
+          loadTokens();
+        };
+        row.append(btn);
+      }
+      list.append(row);
+    }
+  } catch { list.textContent = "読み込めませんでした"; }
+}
+async function createToken() {
+  const name = $("tokenName").value.trim();
+  if (!name) return toast("キーの名前を入力してください");
+  try {
+    const t = await api("POST", "/api/tokens", { name, scopes: $("tokenWrite").checked ? ["read", "write"] : ["read"] });
+    const box = $("tokenIssued");
+    box.hidden = false;
+    box.replaceChildren(make("b", "", "このキーは今しか表示されません。コピーして保管してください。"), make("code", "", t.token));
+    const copy = make("button", "ghost-btn", "コピー");
+    copy.type = "button";
+    copy.onclick = async () => { await navigator.clipboard.writeText(t.token); toast("コピーしました"); };
+    box.append(copy);
+    $("tokenName").value = "";
+    loadTokens();
+  } catch (err) { if (err.status !== 401) toast(`発行できませんでした（${err.message}）`); }
+}
+
 // ---------- shell ----------
 let toastTimer;
 function toast(message) {
@@ -427,7 +471,10 @@ $("detailEdit").onclick = () => { const id = state.activeId; closeDetail(); open
 $("detailDelete").onclick = removeActive;
 $("importButton").onclick = () => $("importFile").click();
 $("importFile").onchange = (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importLegacy(f); };
+$("tokensButton").onclick = () => { $("tokenIssued").hidden = true; $("tokensModal").classList.add("open"); loadTokens(); };
+$("tokensClose").onclick = () => $("tokensModal").classList.remove("open");
+$("tokenCreate").onclick = createToken;
 $("logout").onclick = async () => { await fetch("/auth/logout", { method: "POST" }); location.href = "/"; };
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForm(); closeDetail(); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForm(); closeDetail(); $("tokensModal").classList.remove("open"); } });
 
 boot();

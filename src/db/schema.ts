@@ -56,5 +56,30 @@ export const events = sqliteTable("events", {
   )`),
 ]);
 
+// API keys for AI / scripts. Only the SHA-256 of the key is stored.
+export const apiTokens = sqliteTable("api_tokens", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  scopes: text("scopes", { enum: ["read", "read,write"] }).notNull().default("read"),
+  createdAt: text("created_at").notNull().default(now),
+  lastUsedAt: text("last_used_at"),
+  expiresAt: text("expires_at"),
+  revokedAt: text("revoked_at"),
+}, (t) => [index("api_tokens_user_idx").on(t.userId)]);
+
+// Every request made with an API key, so the owner can see what an AI did.
+export const apiAudit = sqliteTable("api_audit", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenId: text("token_id").notNull(),
+  method: text("method").notNull(),
+  path: text("path").notNull(),
+  status: integer("status").notNull(),
+  createdAt: text("created_at").notNull().default(now),
+}, (t) => [index("api_audit_user_idx").on(t.userId, t.createdAt)]);
+
 export type User = typeof users.$inferSelect;
+export type ApiToken = typeof apiTokens.$inferSelect;
 export type EventRow = typeof events.$inferSelect;

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { exchangeCode } from "./auth/google";
-import { authRoutes, meRoutes, requireUser } from "./auth/routes";
+import { authRoutes, meRoutes, requireSession, requireUser } from "./auth/routes";
+import { tokenRoutes } from "./auth/tokens";
 import type { AppEnv, Deps } from "./env";
 import { eventRoutes, importRoutes } from "./events/routes";
 
@@ -12,6 +13,9 @@ export function createApp(deps: Deps = { exchangeCode }) {
 
   app.use("/api/*", requireUser);
   app.route("/api/me", meRoutes());
+  app.use("/api/tokens/*", requireSession);
+  app.use("/api/tokens", requireSession);
+  app.route("/api/tokens", tokenRoutes());
   app.route("/api/events", eventRoutes());
   app.route("/api/import", importRoutes());
 

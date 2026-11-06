@@ -58,6 +58,10 @@ export function eventRoutes() {
   });
 
   r.delete("/:id", async (c) => {
+    // Destructive calls from an API key (i.e. an AI) must be explicitly confirmed.
+    if (c.get("auth").kind === "token" && c.req.query("confirm") !== "true") {
+      return c.json({ error: "confirmation_required", hint: "Ask the user, then retry with ?confirm=true" }, 428);
+    }
     const ok = await deleteEvent(getDb(c.env.DB), c.get("user").id, c.req.param("id"));
     return ok ? c.json({ deleted: true }) : c.json({ error: "not_found" }, 404);
   });

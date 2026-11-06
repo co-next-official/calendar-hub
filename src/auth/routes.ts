@@ -7,6 +7,7 @@ import { randomToken, sha256Base64url } from "../lib/crypto";
 import { buildAuthUrl } from "./google";
 import { createSession, deleteSession, getSessionUser, isEmailAllowed, SESSION_COOKIE, SESSION_TTL_SEC, upsertUser } from "./session";
 import { eq } from "drizzle-orm";
+import { findToken, recordTokenUse } from "./tokens";
 
 const STATE_COOKIE = "ch_oauth";
 
@@ -78,15 +79,48 @@ export function authRoutes(deps: Deps) {
   return r;
 }
 
-/** Resolves the session cookie to a user, or answers 401. Also blocks cross-site state-changing requests. */
+const isRead = (method: string) => method === "GET" || method === "HEAD";
+
+/**
+ * Resolves the caller to a user, or answers 401.
+ * - `Authorization: Bearer chk_...` → API key. Cookies are ignored, scopes are enforced, every call is audited.
+ * - otherwise the session cookie, with an Origin check on state-changing requests.
+ * The two are never combined, so a key cannot borrow a browser session's rights or vice versa.
+ */
 export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
-  if (c.req.method !== "GET" && c.req.method !== "HEAD") {
+  const db = getDb(c.env.DB);
+  const authz = c.req.header("authorization");
+  if (authz !== undefined) {
+    const raw = /^Bearer\s+(\S+)$/i.exec(authz)?.[1];
+    const found = raw ? await findToken(db, raw) : null;
+    if (!found) return c.json({ error: "invalid_api_key" }, 401);
+    const scopes = found.token.scopes.split(",") as ("read" | "write")[];
+    const needed = isRead(c.req.method) ? "read" : "write";
+    if (!scopes.includes(needed)) {
+      await recordTokenUse(db, found.token, c.req.method, c.req.path, 403);
+      return c.json({ error: "insufficient_scope", required: needed }, 403);
+    }
+    c.set("user", found.user);
+    c.set("auth", { kind: "token", tokenId: found.token.id, scopes });
+    await next();
+    await recordTokenUse(db, found.token, c.req.method, c.req.path, c.res.status);
+    return;
+  }
+
+  if (!isRead(c.req.method)) {
     const origin = c.req.header("origin");
     if (origin && origin !== new URL(c.req.url).origin) return c.json({ error: "cross_origin" }, 403);
   }
-  const user = await getSessionUser(getDb(c.env.DB), getCookie(c, SESSION_COOKIE));
+  const user = await getSessionUser(db, getCookie(c, SESSION_COOKIE));
   if (!user) return c.json({ error: "unauthorized" }, 401);
   c.set("user", user);
+  c.set("auth", { kind: "session" });
+  await next();
+};
+
+/** For routes only a signed-in browser may use (e.g. managing API keys). */
+export const requireSession: MiddlewareHandler<AppEnv> = async (c, next) => {
+  if (c.get("auth")?.kind !== "session") return c.json({ error: "session_required" }, 403);
   await next();
 };
 

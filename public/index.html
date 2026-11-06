@@ -32,6 +32,7 @@
     <div class="side-actions">
       <div class="section-title">DATA</div>
       <button class="ghost-btn" id="importButton" type="button">旧Calendar Hubから取り込む</button>
+      <button class="ghost-btn" id="tokensButton" type="button">AI用APIキー</button>
       <input id="importFile" type="file" accept="application/json,.json" hidden>
     </div>
     <div class="side-foot" id="sideFoot">個人用カレンダー</div>
@@ -108,6 +109,20 @@
     <h2 id="detailTitle"></h2>
     <p id="detailMeta" style="white-space:pre-wrap"></p>
     <div class="detail-actions"><button id="detailEdit">編集</button><button id="detailDelete" class="delete">削除</button></div>
+  </div>
+</div>
+
+<div class="modal" id="tokensModal" role="dialog" aria-modal="true" aria-labelledby="tokensHeading">
+  <div class="form">
+    <h2 id="tokensHeading">AI用APIキー</h2>
+    <p class="hint">ClaudeやChatGPTなどから予定を読み書きするためのキーです。仕様は <a href="/openapi.json" target="_blank" rel="noopener">/openapi.json</a>。キーでの削除には確認（<code>?confirm=true</code>）が必要です。</p>
+    <label for="tokenName">キーの名前</label><input id="tokenName" maxlength="60" placeholder="例：Claude Code">
+    <label class="checkbox"><input id="tokenWrite" type="checkbox"> 書き込みも許可する（予定の作成・変更・削除）</label>
+    <div class="actions" style="position:static"><button type="button" class="save" id="tokenCreate">発行する</button></div>
+    <div class="status" id="tokenIssued" hidden></div>
+    <label>発行済みのキー</label>
+    <div id="tokenList" class="hint">読み込み中…</div>
+    <div class="actions"><button type="button" id="tokensClose">閉じる</button></div>
   </div>
 </div>
 
