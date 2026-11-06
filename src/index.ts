@@ -7,6 +7,7 @@ import { getDb } from "./db/events";
 import { realGoogleApi } from "./google/client";
 import { googleApiRoutes, googleConnectRoutes } from "./google/routes";
 import { syncAll } from "./google/sync";
+import { dispatchReminders } from "./reminders/dispatch";
 import { clientIp, rateLimit, securityHeaders } from "./lib/security";
 import { feedApiRoutes, feedPublicRoutes } from "./events/feed-routes";
 import { mcpRoutes } from "./mcp/routes";
@@ -71,6 +72,9 @@ export default {
   fetch: app.fetch,
   // Cron trigger (wrangler.jsonc): keep Google Calendar mirrors fresh.
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(syncAll(getDb(env.DB), env, defaultDeps.google));
+    const db = getDb(env.DB);
+    ctx.waitUntil(syncAll(db, env, defaultDeps.google));
+    // Only dispatch reminders when VAPID is configured.
+    if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY) ctx.waitUntil(dispatchReminders(db, env));
   },
 } satisfies ExportedHandler<Env>;
