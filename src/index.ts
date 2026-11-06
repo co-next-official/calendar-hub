@@ -5,6 +5,7 @@ import { tokenRoutes } from "./auth/tokens";
 import type { AppEnv, Deps } from "./env";
 import { eventRoutes, importRoutes } from "./events/routes";
 import { groupRoutes } from "./groups/routes";
+import { availabilityRoutes } from "./availability/routes";
 import { guestRoutes, sharingRoutes } from "./events/sharing-routes";
 
 export function createApp(deps: Deps = { exchangeCode }) {
@@ -23,6 +24,7 @@ export function createApp(deps: Deps = { exchangeCode }) {
   app.route("/api/events", sharingRoutes());
   app.route("/api/import", importRoutes());
   app.route("/api/groups", groupRoutes());
+  app.route("/api/availability", availabilityRoutes());
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
   app.onError((err, c) => {

@@ -177,6 +177,27 @@
                 }
               }
             }
+          },
+          "conflicts": {
+            "type": "array",
+            "description": "作成・更新時のみ。時間が重なる自分の予定",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "start_at": {
+                  "type": "string"
+                },
+                "end_at": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "description": "他人の予定で busy_only のときは title が「予定あり」になり、notes と participants は空"
@@ -747,6 +768,136 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/availability": {
+      "get": {
+        "operationId": "findAvailability",
+        "summary": "共通の空き時間を探す（自分だけ、または参加中グループの全員）。空いている時間帯だけを返し、誰の予定かや予定の中身は返さない",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "この日から"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "この日の前まで（31日以内）"
+          },
+          {
+            "name": "group_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "省略時は自分の予定だけ"
+          },
+          {
+            "name": "duration",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 15,
+              "maximum": 720,
+              "default": 60
+            },
+            "description": "必要な長さ（分）"
+          },
+          {
+            "name": "day_start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "09:00"
+            },
+            "description": "各日の探す時間帯の開始"
+          },
+          {
+            "name": "day_end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "21:00"
+            },
+            "description": "各日の探す時間帯の終了"
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "Asia/Tokyo"
+            },
+            "description": "時間帯を解釈するタイムゾーン"
+          },
+          {
+            "name": "include_all_day",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            },
+            "description": "終日予定も埋まりとして扱う"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "空き時間",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "members": {
+                      "type": "integer"
+                    },
+                    "duration_minutes": {
+                      "type": "integer"
+                    },
+                    "windows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "start_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "end_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "グループが見つからない"
           }
         }
       }

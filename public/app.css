@@ -75,6 +75,9 @@
 
 
 /* ---- added after the move to Workers ---- */
+.avail-day{font-size:12px;font-weight:700;margin:12px 0 4px}
+.avail-slot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.avail-slot button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px}
 [hidden]{display:none!important}
 .event.personal{background:#fcf0ed;color:var(--red)}
 .event.team{background:#eef2fa;color:var(--blue)}

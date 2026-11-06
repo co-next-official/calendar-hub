@@ -335,7 +335,7 @@ async function save(ev) {
     state.anchor = new Date(state.selected);
     closeForm();
     refresh();
-    toast(editing ? "予定を更新しました" : "予定を追加しました");
+    toast(saved.conflicts?.length ? `保存しました。「${saved.conflicts[0].title}」${saved.conflicts.length > 1 ? `ほか${saved.conflicts.length - 1}件` : ""}と時間が重なっています` : editing ? "予定を更新しました" : "予定を追加しました");
   } catch (err) {
     if (err.status === 409) { toast("別の画面で先に更新されていました。最新の内容を読み込みます"); closeForm(); loadRange(true); }
     else if (err.status !== 401) toast(`保存できませんでした（${err.message}）`);
@@ -554,6 +554,53 @@ function sharingOf(e) {
   };
 }
 
+// ---------- availability ----------
+function openAvailability() {
+  const sel = $("availGroup");
+  sel.replaceChildren(make("option", "", "自分だけ"), ...state.groups.map((g) => { const o = make("option", "", g.name); o.value = g.id; return o; }));
+  sel.options[0].value = "";
+  if (state.groups[0]) sel.value = state.groups[0].id;
+  $("availFrom").value = keyDate(today);
+  $("availResults").replaceChildren();
+  $("availModal").classList.add("open");
+}
+
+async function searchAvailability() {
+  const from = $("availFrom").value;
+  if (!from) return toast("開始日を選んでください");
+  const to = keyDate(addDays(parseKey(from), Number($("availDays").value)));
+  const params = new URLSearchParams({ from, to, duration: $("availDuration").value, day_start: $("availStart").value, day_end: $("availEnd").value, timezone: TZ });
+  if ($("availGroup").value) params.set("group_id", $("availGroup").value);
+  if ($("availAllDay").checked) params.set("include_all_day", "true");
+  const box = $("availResults");
+  box.replaceChildren(make("div", "hint", "探しています…"));
+  try {
+    const r = await api("GET", `/api/availability?${params}`);
+    box.replaceChildren(make("div", "hint", `${r.members}人の予定から探しました`));
+    if (!r.windows.length) { box.append(make("div", "empty", "条件に合う空き時間はありませんでした")); return; }
+    let lastDay = "";
+    for (const w of r.windows) {
+      const s = new Date(w.start_at), en = new Date(w.end_at);
+      if (keyDate(s) !== lastDay) { lastDay = keyDate(s); box.append(make("div", "avail-day", fmt(s))); }
+      const row = make("div", "avail-slot");
+      row.append(make("span", "", `${hhmm(s)} – ${hhmm(en)}`));
+      const btn = make("button", "", "ここで予定を作る");
+      btn.type = "button";
+      btn.onclick = () => {
+        const groupId = $("availGroup").value;
+        $("availModal").classList.remove("open");
+        openForm(null, s, s.getHours());
+        $("start").value = hhmm(s);
+        const end = new Date(Math.min(s.getTime() + Number(r.duration_minutes) * 60000, en.getTime()));
+        $("end").value = keyDate(end) === keyDate(s) ? hhmm(end) : "23:59";
+        if (groupId) { $("visibility").value = "group"; $("groupSelect").value = groupId; toggleShare(); }
+      };
+      row.append(btn);
+      box.append(row);
+    }
+  } catch (err) { if (err.status !== 401) box.replaceChildren(make("div", "empty", `探せませんでした（${err.message}）`)); }
+}
+
 // ---------- API keys ----------
 async function loadTokens() {
   const list = $("tokenList");
@@ -651,6 +698,9 @@ $("detailEdit").onclick = () => { const id = state.activeId; closeDetail(); open
 $("detailDelete").onclick = removeActive;
 $("importButton").onclick = () => $("importFile").click();
 $("importFile").onchange = (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importLegacy(f); };
+$("availButton").onclick = async () => { await loadGroups(); openAvailability(); };
+$("availSearch").onclick = searchAvailability;
+$("availClose").onclick = () => $("availModal").classList.remove("open");
 $("groupsButton").onclick = async () => { $("groupsModal").classList.add("open"); await loadGroups(); renderGroupDetails(); };
 $("groupsClose").onclick = () => $("groupsModal").classList.remove("open");
 $("groupCreate").onclick = createGroup;
@@ -658,6 +708,6 @@ $("tokensButton").onclick = () => { $("tokenIssued").hidden = true; $("tokensMod
 $("tokensClose").onclick = () => $("tokensModal").classList.remove("open");
 $("tokenCreate").onclick = createToken;
 $("logout").onclick = async () => { await fetch("/auth/logout", { method: "POST" }); location.href = "/"; };
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForm(); closeDetail(); $("tokensModal").classList.remove("open"); $("groupsModal").classList.remove("open"); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForm(); closeDetail(); $("tokensModal").classList.remove("open"); $("groupsModal").classList.remove("open"); $("availModal").classList.remove("open"); } });
 
 boot();

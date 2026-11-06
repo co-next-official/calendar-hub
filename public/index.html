@@ -33,6 +33,7 @@
       <div class="section-title">GROUPS</div>
       <div id="groupList" class="hint"></div>
       <button class="ghost-btn" id="groupsButton" type="button">グループを管理</button>
+      <button class="ghost-btn" id="availButton" type="button">空き時間を探す</button>
     </div>
     <div class="side-actions">
       <div class="section-title">DATA</div>
@@ -148,6 +149,28 @@
     <div class="row"><input id="groupName" maxlength="60" placeholder="例：家族"><button type="button" class="save" id="groupCreate" style="border:0;border-radius:7px;background:var(--green);color:#fff;font-weight:700">作成</button></div>
     <div id="groupDetails"></div>
     <div class="actions"><button type="button" id="groupsClose">閉じる</button></div>
+  </div>
+</div>
+
+<div class="modal" id="availModal" role="dialog" aria-modal="true" aria-labelledby="availHeading">
+  <div class="form">
+    <h2 id="availHeading">空き時間を探す</h2>
+    <p class="hint">グループ全員の予定が空いている時間を探します。相手の予定の中身は表示されません。</p>
+    <label for="availGroup">だれと</label><select id="availGroup"></select>
+    <div class="row">
+      <div><label for="availFrom">いつから</label><input id="availFrom" type="date"></div>
+      <div><label for="availDays">何日分</label><select id="availDays"><option value="7">7日</option><option value="14">14日</option><option value="31">31日</option></select></div>
+    </div>
+    <div class="row">
+      <div><label for="availStart">時間帯</label><input id="availStart" type="time" value="09:00"></div>
+      <div><label for="availEnd">〜</label><input id="availEnd" type="time" value="21:00"></div>
+    </div>
+    <label for="availDuration">長さ</label>
+    <select id="availDuration"><option value="30">30分</option><option value="60" selected>1時間</option><option value="90">1時間30分</option><option value="120">2時間</option><option value="180">3時間</option></select>
+    <label class="checkbox"><input id="availAllDay" type="checkbox"> 終日の予定も「埋まり」として扱う</label>
+    <div class="actions" style="position:static"><button type="button" class="save" id="availSearch">探す</button></div>
+    <div id="availResults"></div>
+    <div class="actions"><button type="button" id="availClose">閉じる</button></div>
   </div>
 </div>
 

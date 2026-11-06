@@ -1,6 +1,9 @@
 import { Hono } from "hono";
 import { createEvent, deleteEvent, findByLegacyId, getDb, getEvent, toFields, updateEvent } from "../db/events";
 import { getVisibleEvent, listVisibleEvents } from "../db/sharing";
+import { and, eq, gt, isNotNull, lt, ne } from "drizzle-orm";
+import type { Db } from "../db/events";
+import { events, type EventRow } from "../db/schema";
 import type { AppEnv } from "../env";
 import { convertLegacyEvent } from "./legacy";
 import { isDate, isTimeZone, validateEvent } from "./validate";
@@ -15,6 +18,17 @@ async function readBody(req: Request): Promise<Record<string, unknown> | null> {
   } catch {
     return null;
   }
+}
+
+/** The owner's other timed events that overlap a timed event (for a "double booking" warning). */
+async function ownConflicts(db: Db, ownerId: string, row: EventRow) {
+  if (row.allDay || !row.startAt || !row.endAt) return [];
+  const rows = await db
+    .select({ id: events.id, title: events.title, start_at: events.startAt, end_at: events.endAt })
+    .from(events)
+    .where(and(eq(events.ownerId, ownerId), ne(events.id, row.id), isNotNull(events.startAt), lt(events.startAt, row.endAt), gt(events.endAt, row.startAt)))
+    .limit(10);
+  return rows;
 }
 
 export function eventRoutes() {
@@ -35,7 +49,7 @@ export function eventRoutes() {
     if (!result.ok) return c.json({ error: result.error }, 400);
     const db = getDb(c.env.DB);
     const row = await createEvent(db, c.get("user").id, result.value, { source: c.get("auth").kind === "token" ? "api" : "web" });
-    return c.json(await getVisibleEvent(db, c.get("user"), row.id), 201);
+    return c.json({ ...(await getVisibleEvent(db, c.get("user"), row.id)), conflicts: await ownConflicts(db, c.get("user").id, row) }, 201);
   });
 
   r.get("/:id", async (c) => {
@@ -55,7 +69,7 @@ export function eventRoutes() {
     const updated = await updateEvent(db, ownerId, id, body.version as number, result.value);
     if (updated.status === "not_found") return c.json({ error: "not_found" }, 404);
     if (updated.status === "conflict") return c.json({ error: "version_conflict", current: await getVisibleEvent(db, c.get("user"), id) }, 409);
-    return c.json(await getVisibleEvent(db, c.get("user"), id));
+    return c.json({ ...(await getVisibleEvent(db, c.get("user"), id)), conflicts: await ownConflicts(db, c.get("user").id, updated.row) });
   });
 
   r.delete("/:id", async (c) => {
