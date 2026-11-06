@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { exchangeCode } from "./auth/google";
 import { authRoutes, meRoutes, requireUser } from "./auth/routes";
 import type { AppEnv, Deps } from "./env";
+import { eventRoutes, importRoutes } from "./events/routes";
 
 export function createApp(deps: Deps = { exchangeCode }) {
   const app = new Hono<AppEnv>();
@@ -11,6 +12,8 @@ export function createApp(deps: Deps = { exchangeCode }) {
 
   app.use("/api/*", requireUser);
   app.route("/api/me", meRoutes());
+  app.route("/api/events", eventRoutes());
+  app.route("/api/import", importRoutes());
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
   app.onError((err, c) => {

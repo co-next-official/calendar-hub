@@ -7,3 +7,4 @@ dist/
 *.pem
 coverage/
 .DS_Store
+.gstack/
