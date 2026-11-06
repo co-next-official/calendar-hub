@@ -11,7 +11,7 @@
   "assets": {
     "directory": "public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/auth/*", "/guest/api/*", "/feed/*"]
+    "run_worker_first": ["/api/*", "/auth/*", "/guest/api/*", "/feed/*", "/mcp"]
   },
   "d1_databases": [
     {

@@ -71,3 +71,14 @@ node tools/orbit-sync.mjs block <todo_id> --minutes 90 --yes  # 提案どおり�
 ```
 
 何度実行しても重複しない（`client_ref` で対応づけている）。定期実行したい場合はタスクスケジューラ等で `due` を回す。
+
+## MCP（AI エージェントから使う）
+
+`/mcp` がリモート MCP サーバー（Streamable HTTP）。認可は画面で発行した API キー。ツールは内部で REST API を同じキーで呼ぶので、スコープ・監査ログ・削除前の確認がそのまま効く。
+
+```bash
+# Claude Code に追加する例
+claude mcp add --transport http calendar-hub https://<デプロイ先>/mcp --header "Authorization: Bearer chk_..."
+```
+
+ツール: `list_events` `get_event` `find_free_time` `list_groups` `create_event` `update_event` `delete_event`（`confirm: true` が必要）。

@@ -9,6 +9,7 @@ import { googleApiRoutes, googleConnectRoutes } from "./google/routes";
 import { syncAll } from "./google/sync";
 import { clientIp, rateLimit, securityHeaders } from "./lib/security";
 import { feedApiRoutes, feedPublicRoutes } from "./events/feed-routes";
+import { mcpRoutes } from "./mcp/routes";
 import { eventRoutes, importRoutes } from "./events/routes";
 import { groupRoutes } from "./groups/routes";
 import { availabilityRoutes } from "./availability/routes";
@@ -29,6 +30,12 @@ export function createApp(deps: Deps = defaultDeps) {
   app.route("/feed", feedPublicRoutes());
 
   app.get("/api/health", (c) => c.json({ ok: true }));
+  // MCP: tools call this same app internally with the caller's API key (scopes, audit and confirmation apply).
+  app.use("/mcp", securityHeaders);
+  app.use("/mcp", rateLimit("API_LIMITER", clientIp));
+  app.route("/mcp", mcpRoutes(async (env, method, path, authorization, body) =>
+    app.request(path, { method, headers: { authorization, ...(body === undefined ? {} : { "content-type": "application/json" }) }, body: body === undefined ? undefined : JSON.stringify(body) }, env),
+  ));
   app.route("/auth/google/calendar", googleConnectRoutes(deps));
   app.route("/auth", authRoutes(deps));
   app.route("/guest/api", guestRoutes());
