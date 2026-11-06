@@ -11,6 +11,11 @@ export type Env = {
   SESSION_SECRET?: string;
   /** base64 of 32 random bytes; encrypts Google OAuth tokens at rest. */
   GOOGLE_TOKEN_KEY?: string;
+  /** Web Push (VAPID) P-256 keys. Public = base64url raw point; private = base64url PKCS8. */
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  /** Contact for VAPID JWT `sub` (e.g. "mailto:you@example.com"). */
+  VAPID_SUBJECT?: string;
   AUTH_LIMITER?: RateLimit;
   GUEST_LIMITER?: RateLimit;
   API_LIMITER?: RateLimit;
