@@ -7,7 +7,7 @@ it("responds to the health check", async () => {
   expect(await res.json()).toEqual({ ok: true });
 });
 
-it("returns JSON 404 for unknown API routes", async () => {
+it("rejects unauthenticated API calls, even to unknown routes", async () => {
   const res = await SELF.fetch("https://example.com/api/nope");
-  expect(res.status).toBe(404);
+  expect(res.status).toBe(401);
 });

@@ -1,13 +1,26 @@
 import { Hono } from "hono";
-import type { AppEnv } from "./env";
+import { exchangeCode } from "./auth/google";
+import { authRoutes, meRoutes, requireUser } from "./auth/routes";
+import type { AppEnv, Deps } from "./env";
 
-export const app = new Hono<AppEnv>();
+export function createApp(deps: Deps = { exchangeCode }) {
+  const app = new Hono<AppEnv>();
 
-app.get("/api/health", (c) => c.json({ ok: true }));
+  app.get("/api/health", (c) => c.json({ ok: true }));
+  app.route("/auth", authRoutes(deps));
 
-app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
+  app.use("/api/*", requireUser);
+  app.route("/api/me", meRoutes());
 
-// Everything else is the static UI.
-app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
+  app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
+  app.onError((err, c) => {
+    console.error(err);
+    return c.json({ error: "internal_error" }, 500);
+  });
 
-export default app;
+  // Everything else is the static UI.
+  app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
+  return app;
+}
+
+export default createApp();
