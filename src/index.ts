@@ -4,6 +4,7 @@ import { authRoutes, meRoutes, requireSession, requireUser } from "./auth/routes
 import { tokenRoutes } from "./auth/tokens";
 import type { AppEnv, Deps } from "./env";
 import { eventRoutes, importRoutes } from "./events/routes";
+import { groupRoutes } from "./groups/routes";
 
 export function createApp(deps: Deps = { exchangeCode }) {
   const app = new Hono<AppEnv>();
@@ -18,6 +19,7 @@ export function createApp(deps: Deps = { exchangeCode }) {
   app.route("/api/tokens", tokenRoutes());
   app.route("/api/events", eventRoutes());
   app.route("/api/import", importRoutes());
+  app.route("/api/groups", groupRoutes());
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
   app.onError((err, c) => {

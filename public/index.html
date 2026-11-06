@@ -30,6 +30,11 @@
       <div class="item"><i class="dot blue"></i>チーム</div>
     </div>
     <div class="side-actions">
+      <div class="section-title">GROUPS</div>
+      <div id="groupList" class="hint"></div>
+      <button class="ghost-btn" id="groupsButton" type="button">グループを管理</button>
+    </div>
+    <div class="side-actions">
       <div class="section-title">DATA</div>
       <button class="ghost-btn" id="importButton" type="button">旧Calendar Hubから取り込む</button>
       <button class="ghost-btn" id="tokensButton" type="button">AI用APIキー</button>
@@ -59,6 +64,7 @@
         </div>
       </div>
       <div class="status" id="status" hidden></div>
+      <div class="status" id="invitations" hidden></div>
       <div class="workspace">
         <div>
           <div class="panel calendar-scroll">
@@ -123,6 +129,17 @@
     <label>発行済みのキー</label>
     <div id="tokenList" class="hint">読み込み中…</div>
     <div class="actions"><button type="button" id="tokensClose">閉じる</button></div>
+  </div>
+</div>
+
+<div class="modal" id="groupsModal" role="dialog" aria-modal="true" aria-labelledby="groupsHeading">
+  <div class="form">
+    <h2 id="groupsHeading">グループ</h2>
+    <p class="hint">家族や友達をグループにまとめると、予定の共有や空き時間探しに使えます。招待した人が承諾すると参加になります。</p>
+    <label for="groupName">新しいグループ</label>
+    <div class="row"><input id="groupName" maxlength="60" placeholder="例：家族"><button type="button" class="save" id="groupCreate" style="border:0;border-radius:7px;background:var(--green);color:#fff;font-weight:700">作成</button></div>
+    <div id="groupDetails"></div>
+    <div class="actions"><button type="button" id="groupsClose">閉じる</button></div>
   </div>
 </div>
 

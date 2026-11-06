@@ -80,6 +80,31 @@ export const apiAudit = sqliteTable("api_audit", {
   createdAt: text("created_at").notNull().default(now),
 }, (t) => [index("api_audit_user_idx").on(t.userId, t.createdAt)]);
 
+export const groups = sqliteTable("groups", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  createdAt: text("created_at").notNull().default(now),
+}, (t) => [check("groups_name_len", sql`length(trim(${t.name})) between 1 and 60`)]);
+
+// Members are invited by email and must accept before they count (their busy time becomes visible to the group).
+export const groupMembers = sqliteTable("group_members", {
+  id: text("id").primaryKey(),
+  groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+  role: text("role", { enum: ["owner", "member"] }).notNull().default("member"),
+  status: text("status", { enum: ["invited", "active"] }).notNull().default("invited"),
+  invitedBy: text("invited_by"),
+  createdAt: text("created_at").notNull().default(now),
+}, (t) => [
+  uniqueIndex("group_members_group_email_idx").on(t.groupId, t.email),
+  index("group_members_email_idx").on(t.email),
+  index("group_members_user_idx").on(t.userId),
+]);
+
 export type User = typeof users.$inferSelect;
+export type Group = typeof groups.$inferSelect;
+export type GroupMember = typeof groupMembers.$inferSelect;
 export type ApiToken = typeof apiTokens.$inferSelect;
 export type EventRow = typeof events.$inferSelect;

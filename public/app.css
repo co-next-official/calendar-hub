@@ -94,3 +94,11 @@
 .token-row small{display:block;color:var(--muted)}
 .token-row button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 10px;cursor:pointer;color:var(--red)}
 #tokenIssued code{display:block;word-break:break-all;margin:6px 0;font-size:12px}
+.group-card{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:12px}
+.group-card h3{margin:0 0 6px;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.group-card h3 button,.member-row button,.invite-row button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:5px 9px;cursor:pointer;font-size:11px}
+.member-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:12px}
+.member-row small{color:var(--muted)}
+.invite-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.invite-row input{flex:1;min-width:160px;padding:8px;border:1px solid var(--line);border-radius:7px}
+.side-group{font-size:13px;color:#53675b;padding:4px}

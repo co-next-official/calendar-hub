@@ -41,5 +41,5 @@ export async function login(t: ReturnType<typeof testApp>, claims: Partial<Googl
 }
 
 export async function resetDb() {
-  await env.DB.exec("DELETE FROM api_audit; DELETE FROM api_tokens; DELETE FROM events; DELETE FROM sessions; DELETE FROM users;");
+  await env.DB.exec("DELETE FROM group_members; DELETE FROM groups; DELETE FROM api_audit; DELETE FROM api_tokens; DELETE FROM events; DELETE FROM sessions; DELETE FROM users;");
 }

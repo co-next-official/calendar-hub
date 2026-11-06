@@ -8,6 +8,7 @@ import { buildAuthUrl } from "./google";
 import { createSession, deleteSession, getSessionUser, isEmailAllowed, SESSION_COOKIE, SESSION_TTL_SEC, upsertUser } from "./session";
 import { eq } from "drizzle-orm";
 import { findToken, recordTokenUse } from "./tokens";
+import { linkInvitations } from "../groups/routes";
 
 const STATE_COOKIE = "ch_oauth";
 
@@ -65,6 +66,7 @@ export function authRoutes(deps: Deps) {
 
     const db = getDb(c.env.DB);
     const user = await upsertUser(db, claims);
+    await linkInvitations(db, user);
     const token = await createSession(db, user.id);
     setCookie(c, SESSION_COOKIE, token, { httpOnly: true, secure: secure(c.req.url), sameSite: "Lax", path: "/", maxAge: SESSION_TTL_SEC });
     return c.redirect(safeReturnTo(saved.returnTo));

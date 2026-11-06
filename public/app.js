@@ -377,6 +377,96 @@ async function importLegacy(file) {
   }
 }
 
+// ---------- groups ----------
+state.groups = [];
+
+async function loadGroups() {
+  try {
+    const { groups } = await api("GET", "/api/groups");
+    state.groups = groups;
+    const list = $("groupList");
+    list.replaceChildren();
+    if (!groups.length) list.textContent = "まだありません";
+    for (const g of groups) list.append(make("div", "side-group", `👥 ${g.name}`));
+    refreshGroupSelect();
+  } catch { /* shown elsewhere */ }
+}
+
+async function loadInvitations() {
+  const box = $("invitations");
+  try {
+    const { invitations } = await api("GET", "/api/groups/invitations");
+    box.hidden = !invitations.length;
+    box.replaceChildren();
+    for (const inv of invitations) {
+      const row = make("div", "invite-row");
+      row.append(make("span", "", `${inv.invited_by ? inv.invited_by + " さんから" : ""}グループ「${inv.group_name}」に招待されています。参加すると、グループのメンバーにあなたの空き時間（予定の中身は除く）が見えるようになります。`));
+      const yes = make("button", "", "参加する"), no = make("button", "", "断る");
+      yes.onclick = async () => { await api("POST", `/api/groups/${inv.group_id}/accept`); toast("参加しました"); loadInvitations(); loadGroups(); };
+      no.onclick = async () => { await api("POST", `/api/groups/${inv.group_id}/decline`); loadInvitations(); };
+      row.append(yes, no);
+      box.append(row);
+    }
+  } catch { box.hidden = true; }
+}
+
+async function renderGroupDetails() {
+  const wrap = $("groupDetails");
+  wrap.replaceChildren();
+  for (const g of state.groups) {
+    let detail;
+    try { detail = await api("GET", `/api/groups/${g.id}`); } catch { continue; }
+    const card = make("div", "group-card");
+    const h = make("h3", "", detail.name);
+    if (detail.is_owner) {
+      const del = make("button", "", "グループを削除");
+      del.onclick = async () => { if (!confirm(`「${detail.name}」を削除しますか？`)) return; await api("DELETE", `/api/groups/${g.id}`); await loadGroups(); renderGroupDetails(); };
+      h.append(del);
+    }
+    card.append(h);
+    for (const m of detail.members) {
+      const row = make("div", "member-row");
+      const info = make("div");
+      info.append(make("span", "", m.name || m.email), make("small", "", `  ${m.role === "owner" ? "オーナー" : m.status === "invited" ? "招待中" : "メンバー"}${m.name ? " · " + m.email : ""}`));
+      row.append(info);
+      if (m.role !== "owner" && (detail.is_owner || m.is_me)) {
+        const btn = make("button", "", m.is_me ? "抜ける" : m.status === "invited" ? "招待を取り消す" : "外す");
+        btn.onclick = async () => {
+          if (!confirm(m.is_me ? "このグループから抜けますか？" : `${m.email} を外しますか？`)) return;
+          await api("DELETE", `/api/groups/${g.id}/members/${m.id}`);
+          await loadGroups();
+          renderGroupDetails();
+        };
+        row.append(btn);
+      }
+      card.append(row);
+    }
+    if (detail.is_owner) {
+      const inviteRow = make("div", "invite-row");
+      const input = make("input");
+      input.type = "email";
+      input.placeholder = "招待する人のGoogleアカウントのメール";
+      const btn = make("button", "", "招待");
+      btn.onclick = async () => {
+        try { await api("POST", `/api/groups/${g.id}/members`, { email: input.value }); toast("招待しました。相手がログインすると承諾できます"); renderGroupDetails(); }
+        catch (err) { toast(err.message === "already_member" ? "すでに招待済みです" : err.message === "invalid_email" ? "メールアドレスを確認してください" : "招待できませんでした"); }
+      };
+      inviteRow.append(input, btn);
+      card.append(inviteRow);
+    }
+    wrap.append(card);
+  }
+}
+
+async function createGroup() {
+  const name = $("groupName").value.trim();
+  if (!name) return toast("グループ名を入力してください");
+  try { await api("POST", "/api/groups", { name }); $("groupName").value = ""; await loadGroups(); renderGroupDetails(); }
+  catch { toast("作成できませんでした"); }
+}
+
+function refreshGroupSelect() { /* filled in by the sharing UI */ }
+
 // ---------- API keys ----------
 async function loadTokens() {
   const list = $("tokenList");
@@ -453,6 +543,8 @@ async function boot() {
   if (me.avatar_url) { const img = make("img"); img.src = me.avatar_url; img.alt = ""; img.referrerPolicy = "no-referrer"; avatar.replaceChildren(img); }
   else avatar.textContent = (me.name || me.email).slice(0, 1);
   refresh();
+  loadGroups();
+  loadInvitations();
 }
 
 $("create").onclick = $("create2").onclick = () => openForm();
@@ -471,10 +563,13 @@ $("detailEdit").onclick = () => { const id = state.activeId; closeDetail(); open
 $("detailDelete").onclick = removeActive;
 $("importButton").onclick = () => $("importFile").click();
 $("importFile").onchange = (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importLegacy(f); };
+$("groupsButton").onclick = async () => { $("groupsModal").classList.add("open"); await loadGroups(); renderGroupDetails(); };
+$("groupsClose").onclick = () => $("groupsModal").classList.remove("open");
+$("groupCreate").onclick = createGroup;
 $("tokensButton").onclick = () => { $("tokenIssued").hidden = true; $("tokensModal").classList.add("open"); loadTokens(); };
 $("tokensClose").onclick = () => $("tokensModal").classList.remove("open");
 $("tokenCreate").onclick = createToken;
 $("logout").onclick = async () => { await fetch("/auth/logout", { method: "POST" }); location.href = "/"; };
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForm(); closeDetail(); $("tokensModal").classList.remove("open"); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForm(); closeDetail(); $("tokensModal").classList.remove("open"); $("groupsModal").classList.remove("open"); } });
 
 boot();
